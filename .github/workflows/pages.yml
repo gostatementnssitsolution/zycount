@@ -1,9 +1,8 @@
 # Publishes the demo workspace at https://gostatementnssitsolution.github.io/zycount/
 #
-# Two jobs on purpose. A job that names the `github-pages` environment cannot
-# start until that environment exists, and it only exists once Pages has been
-# turned on — so `enable` turns it on first (that is what `enablement: true`
-# does), and `deploy` runs after it.
+# Pages serves this repository from the `gh-pages` branch, so the job copies
+# `docs/` onto that branch rather than deploying through the Pages environment —
+# an Actions deployment is refused while the source is a branch.
 name: Pages
 
 on:
@@ -15,32 +14,36 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
   group: pages
   cancel-in-progress: false
 
 jobs:
-  enable:
+  publish:
+    name: Copy docs to gh-pages
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/configure-pages@v5
-        with:
-          enablement: true
-
-  deploy:
-    needs: enable
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/upload-pages-artifact@v3
         with:
-          path: docs
-      - id: deploy
-        uses: actions/deploy-pages@v4
+          fetch-depth: 0
+
+      - name: Copy the site onto gh-pages
+        run: |
+          set -euo pipefail
+          site="$(mktemp -d)"
+          cp -R docs/. "$site/"
+          touch "$site/.nojekyll"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git checkout --orphan gh-pages-next
+          git rm -rq --cached .
+          find . -mindepth 1 -maxdepth 1 -not -name .git -exec rm -rf {} +
+          cp -R "$site/." .
+
+          git add -A
+          git commit -m "site: ${GITHUB_SHA::7}"
+          git push --force origin gh-pages-next:gh-pages
