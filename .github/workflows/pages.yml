@@ -1,7 +1,9 @@
 # Publishes the demo workspace at https://gostatementnssitsolution.github.io/zycount/
 #
-# `configure-pages` with `enablement: true` turns Pages on for the repository
-# the first time this runs, so nothing has to be switched on by hand.
+# Two jobs on purpose. A job that names the `github-pages` environment cannot
+# start until that environment exists, and it only exists once Pages has been
+# turned on — so `enable` turns it on first (that is what `enablement: true`
+# does), and `deploy` runs after it.
 name: Pages
 
 on:
@@ -22,16 +24,21 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  enable:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
   deploy:
+    needs: enable
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/configure-pages@v5
-        with:
-          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: docs
