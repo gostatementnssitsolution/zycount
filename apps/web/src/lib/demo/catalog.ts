@@ -1,0 +1,45 @@
+/** Account names used by the preview postings, keyed by chart-of-accounts code. */
+export const ACCOUNT_NAMES: Record<string, string> = {
+  "1000": "Cash in Hand",
+  "1010": "Maybank Current Account",
+  "1020": "CIMB Operating Account",
+  "1030": "Stripe Settlement Account",
+  "1200": "Trade Receivables",
+  "1300": "Inventory — Finished Goods",
+  "1450": "SST Recoverable",
+  "1500": "Office Equipment",
+  "1510": "Motor Vehicles",
+  "1520": "Furniture & Fittings",
+  "1590": "Accumulated Depreciation",
+  "2100": "Trade Payables",
+  "2110": "Credit Card Payable",
+  "2210": "EPF Payable",
+  "2220": "SOCSO & EIS Payable",
+  "2230": "PCB Payable",
+  "2240": "Net Salaries Payable",
+  "2310": "SST Payable",
+  "4000": "Sales — Goods",
+  "4010": "Sales — Services",
+  "4020": "Sales — Subscriptions",
+  "4900": "Other Income",
+  "5000": "Cost of Goods Sold",
+  "6100": "Salaries & Wages",
+  "6110": "EPF — Employer",
+  "6120": "SOCSO & EIS — Employer",
+  "6200": "Rent",
+  "6210": "Utilities",
+  "6220": "Telephone & Internet",
+  "6300": "Marketing & Advertising",
+  "6310": "Travel & Transport",
+  "6320": "Meals & Entertainment",
+  "6400": "Professional Fees",
+  "6410": "Software Subscriptions",
+  "6500": "Repairs & Maintenance",
+  "6600": "Depreciation",
+  "6900": "Bank Charges",
+};
+
+export const DEMO_CURRENCY = "MYR";
+
+/** The period the preview screens are positioned in. */
+export const DEMO_PERIOD = { label: "September 2026", start: "2026-09-01", end: "2026-09-30" };

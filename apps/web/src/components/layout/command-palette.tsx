@@ -2,23 +2,7 @@
 
 import { PERMISSIONS } from "@zycount/shared";
 import { Command } from "cmdk";
-import {
-  BookOpen,
-  Building2,
-  CalendarRange,
-  FileBarChart,
-  LayoutDashboard,
-  Layers,
-  Moon,
-  Plus,
-  Scale,
-  ScrollText,
-  Search,
-  Settings,
-  ShieldCheck,
-  Sun,
-  TrendingUp,
-} from "lucide-react";
+import { BookOpen, Building2, Layers, Moon, Plus, Search, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
 import * as React from "react";
@@ -26,6 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { useAccounts, useJournals } from "@/hooks/use-accounting";
 import { useDebounced, useUiStore } from "@/hooks/use-ui";
 import { useAuth } from "@/providers/auth-provider";
+import { NAVIGATION } from "./nav-config";
 
 /**
  * Command palette (docs/spec/07 §45) — ⌘K.
@@ -138,45 +123,28 @@ export function CommandPalette() {
               )}
             </Group>
 
-            <Group heading="Go to">
-              <Item icon={LayoutDashboard} onSelect={() => go("/")} shortcut="G D">
-                Dashboard
-              </Item>
-              <Item icon={Layers} onSelect={() => go("/accounting/chart-of-accounts")} shortcut="G A">
-                Chart of Accounts
-              </Item>
-              <Item icon={BookOpen} onSelect={() => go("/accounting/journals")} shortcut="G J">
-                Journal Entries
-              </Item>
-              <Item icon={ScrollText} onSelect={() => go("/accounting/general-ledger")} shortcut="G L">
-                General Ledger
-              </Item>
-              <Item icon={CalendarRange} onSelect={() => go("/accounting/periods")}>
-                Fiscal Periods
-              </Item>
-              <Item icon={Scale} onSelect={() => go("/reports/trial-balance")} shortcut="G T">
-                Trial Balance
-              </Item>
-              <Item icon={TrendingUp} onSelect={() => go("/reports/profit-loss")} shortcut="G P">
-                Profit &amp; Loss
-              </Item>
-              <Item icon={FileBarChart} onSelect={() => go("/reports/balance-sheet")} shortcut="G B">
-                Balance Sheet
-              </Item>
-              {can(PERMISSIONS.USER_VIEW) && (
-                <Item icon={ShieldCheck} onSelect={() => go("/admin/users")}>
-                  Users &amp; Roles
-                </Item>
-              )}
-              {can(PERMISSIONS.AUDIT_VIEW) && (
-                <Item icon={ScrollText} onSelect={() => go("/admin/audit-log")}>
-                  Audit Log
-                </Item>
-              )}
-              <Item icon={Settings} onSelect={() => go("/admin/settings")}>
-                Company Settings
-              </Item>
-            </Group>
+            {NAVIGATION.map((group) => {
+              const items = group.items.filter((item) => !item.permission || can(item.permission));
+              if (items.length === 0) return null;
+
+              return (
+                <Group key={group.label} heading={`Go to · ${group.label}`}>
+                  {items.map((item) => (
+                    <Item
+                      key={item.href}
+                      icon={item.icon}
+                      shortcut={item.shortcut}
+                      onSelect={() => go(item.href)}
+                    >
+                      {item.label}
+                      {item.description && (
+                        <span className="truncate text-muted-foreground">{item.description}</span>
+                      )}
+                    </Item>
+                  ))}
+                </Group>
+              );
+            })}
 
             {(user?.companies.length ?? 0) > 1 && (
               <Group heading="Switch company">

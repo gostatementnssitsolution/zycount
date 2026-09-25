@@ -24,7 +24,10 @@ export function PageHeader({
             <p className="mt-1 text-sm text-muted-foreground">{description}</p>
           )}
         </div>
-        {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
+        {/* The actions must be allowed to shrink: `shrink-0` would hold the
+            row at the combined width of every control and push the page wider
+            than the phone it is being read on. */}
+        {actions && <div className="flex min-w-0 flex-wrap items-center gap-2">{actions}</div>}
       </div>
       {children && <div className="mt-4">{children}</div>}
     </div>

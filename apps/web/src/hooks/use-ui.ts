@@ -68,7 +68,11 @@ export function useKeyboardShortcuts(handlers: {
           l: "/accounting/general-ledger",
           t: "/reports/trial-balance",
           p: "/reports/profit-loss",
-          b: "/reports/balance-sheet",
+          b: "/purchases/bills",
+          i: "/sales/invoices",
+          r: "/banking/reconciliation",
+          c: "/ai",
+          h: "/insights/business-health",
         };
 
         const destination = destinations[event.key.toLowerCase()];

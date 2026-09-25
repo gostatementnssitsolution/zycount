@@ -25,6 +25,31 @@ SOURCE DOCUMENT -> BUSINESS TRANSACTION -> ACCOUNTING POSTING -> JOURNAL -> GENE
 | **Dashboard** | KPI tiles, revenue/expense/profit and cash charts, business-health panel |
 | **Audit** | Append-only trail on every privileged action, filterable, and per-record on the detail pages |
 
+**The rest of the portal — designed and navigable, not yet wired.**
+
+Sales, purchases, inventory, banking, receipt capture, payroll, fixed assets, cash flow, the
+insight screens and the finance copilot are all built and reachable from the sidebar. They
+render from a sample data set in `apps/web/src/lib/demo` rather than from your books, and every
+one of those screens says so, in a banner you cannot miss and a *Preview* mark in the navigation.
+Each screen is built against the shape its endpoint will return, so connecting it in its phase is
+a change of data source rather than a rewrite.
+
+| Module | Screens | Live in |
+|---|---|---|
+| **Sales** | Customers, quotations, invoices (list and document), receipts, AR aging | Phase 2 |
+| **Purchases** | Suppliers, purchase orders, bills, payments, AP aging | Phase 2–3 |
+| **Banking** | Accounts against the ledger, and the reconciliation workbench | Phase 2 |
+| **Receipt capture** | Upload, extracted fields with confidence, suggested coding, entry on approval | Phase 3 |
+| **Inventory** | Items, stock movements, reorder planner | Phase 3 |
+| **Payroll** | Employees, pay runs, EPF/SOCSO/EIS/PCB submissions | Phase 4 |
+| **Fixed assets** | Register and the monthly depreciation run | Phase 4 |
+| **Insights** | Business health, analytics, cash flow statement | Phase 5 |
+| **Copilot** | Ask the ledger a question; every figure cites its record | Phase 6 |
+
+What ties them together is the same chain the engine enforces: every source document shows the
+entry it will produce — account by account, debit and credit, proved to balance — *before*
+anything posts, and links on to the journal, the ledger and the report once it has.
+
 The [engineering specification](docs/spec/) remains the source of truth; delivery follows the
 [phased roadmap](docs/spec/16-phase-roadmap-and-launch-checklist.md).
 
