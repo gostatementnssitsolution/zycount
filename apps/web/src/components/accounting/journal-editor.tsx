@@ -13,7 +13,7 @@ import {
 import { AlertTriangle, ArrowLeftRight, CheckCircle2, Plus, Save, Send, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import * as React from "react";
-import { useFieldArray, useForm } from "react-hook-form";
+import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { AccountPicker } from "@/components/common/account-picker";
 import { FormError } from "@/components/common/error-state";
@@ -89,11 +89,21 @@ export function JournalEditor({ journal }: { journal?: JournalEntryDto }) {
 
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "lines" });
 
-  const lines = form.watch("lines");
-  const date = form.watch("date");
+  // `useWatch` rather than `form.watch` — a field array's values do not reach a
+  // plain watch reliably, which would leave the running balance showing zero
+  // while the inputs clearly hold amounts.
+  const lines = useWatch({ control: form.control, name: "lines" });
+  const date = useWatch({ control: form.control, name: "date" });
 
   const balance = React.useMemo(
-    () => checkBalance((lines ?? []).map((line) => ({ ...line, accountId: line.accountId || "-" }))),
+    () =>
+      checkBalance(
+        (lines ?? []).map((line) => ({
+          accountId: line?.accountId || "-",
+          debit: line?.debit ?? "0.00",
+          credit: line?.credit ?? "0.00",
+        })),
+      ),
     [lines],
   );
 
@@ -149,21 +159,37 @@ export function JournalEditor({ journal }: { journal?: JournalEntryDto }) {
 
   const onSubmit = form.handleSubmit((values) => submit(values, intent === "post"));
 
-  /** Fills the opposite side with whatever is needed to balance the entry. */
+  /**
+   * Sets this line to whatever amount squares the entry off.
+   *
+   * The figure is derived from the *other* lines, so pressing it on a line that
+   * already holds an amount replaces that amount rather than adding to it —
+   * which is what "fill this line with the amount needed to balance" means.
+   */
   const balanceOnLine = (index: number) => {
-    const difference = subtractMoney(balance.totalDebit, balance.totalCredit);
-    const short = difference.startsWith("-");
-    const amount = short ? difference.slice(1) : difference;
+    const others = (lines ?? []).filter((_, position) => position !== index);
 
-    if (amount === "0.00") return;
+    const rest = checkBalance(
+      others.map((line) => ({
+        accountId: line?.accountId || "-",
+        debit: line?.debit ?? "0.00",
+        credit: line?.credit ?? "0.00",
+      })),
+    );
 
-    if (short) {
-      form.setValue(`lines.${index}.debit`, amount, { shouldValidate: true });
-      form.setValue(`lines.${index}.credit`, "0.00", { shouldValidate: true });
-    } else {
-      form.setValue(`lines.${index}.credit`, amount, { shouldValidate: true });
-      form.setValue(`lines.${index}.debit`, "0.00", { shouldValidate: true });
-    }
+    const difference = subtractMoney(rest.totalDebit, rest.totalCredit);
+    if (difference === "0.00") return;
+
+    // The other lines are debit-heavy, so this one takes the credit, and vice versa.
+    const otherLinesAreDebitHeavy = !difference.startsWith("-");
+    const amount = otherLinesAreDebitHeavy ? difference : difference.slice(1);
+
+    form.setValue(`lines.${index}.debit`, otherLinesAreDebitHeavy ? "0.00" : amount, {
+      shouldValidate: true,
+    });
+    form.setValue(`lines.${index}.credit`, otherLinesAreDebitHeavy ? amount : "0.00", {
+      shouldValidate: true,
+    });
   };
 
   return (
@@ -256,7 +282,7 @@ export function JournalEditor({ journal }: { journal?: JournalEntryDto }) {
 
                   <TableCell>
                     <AccountPicker
-                      value={form.watch(`lines.${index}.accountId`)}
+                      value={lines?.[index]?.accountId ?? ""}
                       onChange={(accountId) =>
                         form.setValue(`lines.${index}.accountId`, accountId, {
                           shouldValidate: true,
@@ -275,7 +301,7 @@ export function JournalEditor({ journal }: { journal?: JournalEntryDto }) {
 
                   <TableCell>
                     <AmountInput
-                      value={form.watch(`lines.${index}.debit`)}
+                      value={lines?.[index]?.debit ?? "0.00"}
                       onChange={(value) => {
                         form.setValue(`lines.${index}.debit`, value, { shouldValidate: true });
                         // A line is one-sided: entering a debit clears the credit.
@@ -289,7 +315,7 @@ export function JournalEditor({ journal }: { journal?: JournalEntryDto }) {
 
                   <TableCell>
                     <AmountInput
-                      value={form.watch(`lines.${index}.credit`)}
+                      value={lines?.[index]?.credit ?? "0.00"}
                       onChange={(value) => {
                         form.setValue(`lines.${index}.credit`, value, { shouldValidate: true });
                         if (value !== "0.00" && value !== "") {
@@ -307,7 +333,7 @@ export function JournalEditor({ journal }: { journal?: JournalEntryDto }) {
                         variant="ghost"
                         size="icon-sm"
                         onClick={() => balanceOnLine(index)}
-                        disabled={balance.difference === "0.00"}
+                        disabled={balance.balanced}
                         title="Fill this line with the amount needed to balance"
                         aria-label={`Balance the entry on line ${index + 1}`}
                       >
