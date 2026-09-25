@@ -11,7 +11,13 @@
     "build": "turbo run build",
     "lint": "turbo run lint",
     "test": "turbo run test",
-    "typecheck": "turbo run typecheck"
+    "typecheck": "turbo run typecheck",
+    "db:generate": "pnpm --filter @zycount/db prisma:generate",
+    "db:migrate": "pnpm --filter @zycount/db prisma:migrate",
+    "db:deploy": "pnpm --filter @zycount/db prisma:deploy",
+    "db:seed": "pnpm --filter @zycount/db seed",
+    "db:reset": "pnpm --filter @zycount/db prisma:reset",
+    "format": "prettier --write \"**/*.{ts,tsx,md,json,css}\""
   },
   "devDependencies": {
     "turbo": "^2.1.3",

@@ -1,0 +1,57 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Migrations are forward-only and applied before the new code starts, so a
+# rolled-out release never meets a schema it does not know (docs/spec/15).
+jobs:
+  deploy:
+    name: Migrate and deploy
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      # The pnpm version comes from `packageManager` in package.json.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm --filter @zycount/db build && pnpm build
+
+      - name: Apply migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: pnpm --filter @zycount/db prisma:deploy
+
+      # Replace with the platform's own deploy step (Fly, Render, Railway, k8s).
+      - name: Deploy API, workers and web
+        run: echo "Configure the deployment target for this environment."
+
+      - name: Smoke-test the health endpoint
+        env:
+          HEALTH_URL: ${{ secrets.HEALTH_URL }}
+        run: |
+          if [ -z "$HEALTH_URL" ]; then
+            echo "HEALTH_URL is not configured; skipping the smoke test."
+            exit 0
+          fi
+          for attempt in 1 2 3 4 5; do
+            if curl -fsS "$HEALTH_URL" | grep -q '"status":"ok"'; then
+              echo "Health check passed."
+              exit 0
+            fi
+            echo "Attempt $attempt failed; retrying in 10s."
+            sleep 10
+          done
+          echo "The deployed API did not report healthy."
+          exit 1

@@ -2,19 +2,193 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
-}
-
-@media (prefers-color-scheme: dark) {
+/**
+ * Design tokens. Light is the default; `.dark` on <html> swaps the palette.
+ * Both themes are tuned for WCAG AA contrast on text and interactive elements
+ * (docs/spec/07 §44).
+ */
+@layer base {
   :root {
-    --background: #0b1120;
-    --foreground: #e2e8f0;
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --brand: 221 83% 45%;
+    --brand-foreground: 0 0% 100%;
+    --brand-muted: 221 83% 96%;
+
+    --primary: 222 47% 15%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 40% 94%;
+    --secondary-foreground: 222 47% 15%;
+
+    --muted: 210 40% 94%;
+    --muted-foreground: 215 16% 42%;
+
+    --accent: 210 40% 94%;
+    --accent-foreground: 222 47% 15%;
+
+    --destructive: 0 72% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 152 62% 30%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 32 90% 40%;
+    --warning-foreground: 0 0% 100%;
+
+    --info: 199 89% 38%;
+    --info-foreground: 0 0% 100%;
+
+    --border: 214 32% 89%;
+    --input: 214 32% 85%;
+    --ring: 221 83% 45%;
+
+    --sidebar: 222 47% 13%;
+    --sidebar-foreground: 210 40% 96%;
+    --sidebar-muted: 215 20% 62%;
+    --sidebar-accent: 222 40% 20%;
+    --sidebar-border: 222 40% 22%;
+
+    /* Categorical series, in fixed assignment order. Validated for the light
+       surface: OKLCH lightness band, chroma floor, adjacent-pair colour-vision
+       separation, and >= 3:1 contrast on white. Never cycle past slot 6 — a
+       seventh series folds into "Other". */
+    --chart-1: 221 83% 53.1%; /* blue   #2463eb */
+    --chart-2: 32 95% 43.7%;  /* amber  #d97706 */
+    --chart-3: 280 60% 54.9%; /* purple #a347d1 */
+    --chart-4: 152 62% 38%;   /* green  #259d65 */
+    --chart-5: 199 89% 45.1%; /* cyan   #0d98d9 */
+    --chart-6: 348 70% 52%;   /* rose   #da2f51 */
+
+    --radius: 0.625rem;
+  }
+
+  .dark {
+    --background: 222 47% 7%;
+    --foreground: 210 40% 96%;
+
+    --card: 222 45% 10%;
+    --card-foreground: 210 40% 96%;
+
+    --popover: 222 45% 11%;
+    --popover-foreground: 210 40% 96%;
+
+    --brand: 217 91% 62%;
+    --brand-foreground: 222 47% 8%;
+    --brand-muted: 217 60% 18%;
+
+    --primary: 210 40% 96%;
+    --primary-foreground: 222 47% 11%;
+
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 96%;
+
+    --muted: 217 33% 16%;
+    --muted-foreground: 215 20% 68%;
+
+    --accent: 217 33% 19%;
+    --accent-foreground: 210 40% 96%;
+
+    --destructive: 0 72% 58%;
+    --destructive-foreground: 222 47% 8%;
+
+    --success: 152 58% 48%;
+    --success-foreground: 222 47% 8%;
+
+    --warning: 38 92% 58%;
+    --warning-foreground: 222 47% 8%;
+
+    --info: 199 89% 58%;
+    --info-foreground: 222 47% 8%;
+
+    --border: 217 33% 20%;
+    --input: 217 33% 24%;
+    --ring: 217 91% 62%;
+
+    --sidebar: 222 47% 9%;
+    --sidebar-foreground: 210 40% 94%;
+    --sidebar-muted: 215 20% 60%;
+    --sidebar-accent: 217 33% 17%;
+    --sidebar-border: 217 33% 18%;
+
+    /* The same six hues re-stepped for the dark surface — a selected palette,
+       not an automatic flip. The light steps sit above the dark lightness band
+       and would glare against this background. */
+    --chart-1: 217 91% 54.5%; /* blue   #2172f5 */
+    --chart-2: 38 92% 34.5%;  /* amber  #a96e07 */
+    --chart-3: 280 65% 55.5%; /* purple #a644d7 */
+    --chart-4: 152 58% 36%;   /* green  #27915f */
+    --chart-5: 199 89% 39.5%; /* cyan   #0b86be */
+    --chart-6: 348 75% 50.5%; /* rose   #df2248 */
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  /* Figures must line up column to column, in every table and every total. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-border;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/40;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
+@layer components {
+  /* Negative figures read as parentheses in accounting, never a minus sign. */
+  .figure-negative::before {
+    content: "(";
+  }
+  .figure-negative::after {
+    content: ")";
+  }
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+@media print {
+  .print-hidden {
+    display: none !important;
+  }
+  body {
+    background: white;
+    color: black;
+  }
 }

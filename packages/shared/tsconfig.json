@@ -1,12 +1,16 @@
 {
   "compilerOptions": {
     "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "strict": true,
+    "noUncheckedIndexedAccess": false,
     "declaration": true,
+    "esModuleInterop": true,
     "skipLibCheck": true,
-    "outDir": "dist"
+    "noEmit": true,
+    "types": ["vitest/globals"]
   },
   "include": ["src/**/*.ts"]
 }

@@ -1,0 +1,111 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Secrets are placeholders for CI only; production loads real values from a
+  # secret manager (docs/spec/15 — Environments).
+  DATABASE_URL: postgresql://zycount:zycount@localhost:5432/zycount_test?schema=public
+  JWT_ACCESS_SECRET: ci-access-secret-long-enough-for-tests
+  JWT_REFRESH_SECRET: ci-refresh-secret-long-enough-for-tests
+  NODE_ENV: test
+
+jobs:
+  # install -> typecheck -> lint -> unit, per docs/spec/15 (CI on every PR).
+  static:
+    name: Typecheck, lint and unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The pnpm version comes from `packageManager` in package.json.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Generate the Prisma client
+        run: pnpm --filter @zycount/db prisma:generate
+
+      - name: Build the shared packages
+        run: pnpm --filter @zycount/shared build && pnpm --filter @zycount/db build
+
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - name: Unit tests
+        run: pnpm --filter @zycount/shared test
+
+  # The suite that decides whether the books can be trusted (docs/spec/12 §60).
+  accounting-invariants:
+    name: Integration and accounting invariants
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: zycount
+          POSTGRES_PASSWORD: zycount
+          POSTGRES_DB: zycount_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U zycount"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # The pnpm version comes from `packageManager` in package.json.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build the shared packages
+        run: pnpm --filter @zycount/shared build && pnpm --filter @zycount/db build
+
+      - name: Apply migrations
+        run: pnpm --filter @zycount/db prisma:deploy
+
+      - name: Seed the demo companies
+        run: pnpm --filter @zycount/db seed
+
+      # Any broken invariant fails the build — an unbalanced ledger never ships.
+      - name: Accounting invariant suite
+        run: pnpm --filter @zycount/api test:int
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: static
+    steps:
+      - uses: actions/checkout@v4
+
+      # The pnpm version comes from `packageManager` in package.json.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @zycount/db prisma:generate
+      - run: pnpm build

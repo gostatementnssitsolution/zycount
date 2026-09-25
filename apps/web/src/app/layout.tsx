@@ -1,24 +1,59 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+import { Inter, JetBrains_Mono } from "next/font/google";
+import { Toaster } from "sonner";
 import "./globals.css";
-import { Sidebar } from "@/components/sidebar";
-import { Topbar } from "@/components/topbar";
+import { AuthProvider } from "@/providers/auth-provider";
+import { QueryProvider } from "@/providers/query-provider";
+import { ThemeProvider } from "@/providers/theme-provider";
+
+const sans = Inter({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  display: "swap",
+});
+
+// Account codes and references need a fixed-width face to scan down a column.
+const mono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
-  title: "Zycount — Accounting & Business OS",
-  description: "Modern intelligent accounting and business operating system.",
+  title: {
+    default: "Zycount — Accounting & Business OS",
+    template: "%s · Zycount",
+  },
+  description:
+    "A financial operating system where every business transaction produces the correct accounting impact, traceable back to its source document.",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f8fafc" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a1020" },
+  ],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning className={`${sans.variable} ${mono.variable}`}>
       <body>
-        <div className="flex min-h-screen">
-          <Sidebar />
-          <div className="flex flex-1 flex-col">
-            <Topbar />
-            <main className="flex-1 p-6">{children}</main>
-          </div>
-        </div>
+        <ThemeProvider>
+          <QueryProvider>
+            <AuthProvider>
+              {children}
+              <Toaster
+                position="bottom-right"
+                closeButton
+                richColors
+                toastOptions={{ classNames: { toast: "font-sans" } }}
+              />
+            </AuthProvider>
+          </QueryProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

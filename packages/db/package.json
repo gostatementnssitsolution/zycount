@@ -2,22 +2,41 @@
   "name": "@zycount/db",
   "version": "0.1.0",
   "private": true,
-  "main": "src/index.ts",
-  "types": "src/index.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
   "scripts": {
+    "build": "prisma generate && tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
+    "prisma:reset": "prisma migrate reset --force",
     "prisma:studio": "prisma studio",
     "seed": "tsx prisma/seed.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@prisma/client": "^5.20.0"
+    "@prisma/client": "^5.20.0",
+    "@zycount/shared": "workspace:*"
   },
   "devDependencies": {
+    "@node-rs/argon2": "^1.8.3",
+    "@types/node": "^20.16.10",
     "prisma": "^5.20.0",
     "tsx": "^4.19.1",
     "typescript": "^5.6.2"
-  }
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "files": [
+    "dist"
+  ]
 }
