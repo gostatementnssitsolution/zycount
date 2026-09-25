@@ -64,6 +64,7 @@ function Periods() {
   return (
     <div>
       <PageHeader
+        breadcrumbs={[{ label: "Accounting" }, { label: "Fiscal Periods" }]}
         title="Fiscal Periods"
         description="Nothing can be posted into a closed period without an audited reopening."
         actions={

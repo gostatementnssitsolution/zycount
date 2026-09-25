@@ -48,6 +48,7 @@ function TrialBalance() {
   return (
     <div>
       <PageHeader
+        breadcrumbs={[{ label: "Reports" }, { label: "Trial Balance" }]}
         title="Trial Balance"
         description="Every account's opening balance, movement and closing position."
       >
@@ -92,7 +93,7 @@ function TrialBalance() {
 
           <Card>
             <CardContent className="p-0">
-              <div className="p-5 pb-0">
+              <div className="px-5 pt-5">
                 <ReportMeta
                   companyName={data.meta.companyName}
                   title="Trial Balance"

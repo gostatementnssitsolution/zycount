@@ -20,6 +20,9 @@ const config: Config = {
     extend: {
       colors: {
         border: "hsl(var(--border))",
+        "border-strong": "hsl(var(--border-strong))",
+        surface: "hsl(var(--surface))",
+        sunk: "hsl(var(--sunk))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
@@ -94,12 +97,26 @@ const config: Config = {
         sm: "calc(var(--radius) - 4px)",
       },
       fontFamily: {
+        // IBM Plex was drawn for technical and data interfaces: it has real
+        // character without the mannerisms of a display face, and its figures
+        // hold a column at 12px.
         sans: ["var(--font-sans)", "ui-sans-serif", "system-ui", "sans-serif"],
-        // Figures line up column-to-column only in a tabular face.
         mono: ["var(--font-mono)", "ui-monospace", "SFMono-Regular", "monospace"],
+      },
+      spacing: {
+        row: "var(--row-h)",
+        "cell-y": "var(--cell-y)",
+        "cell-x": "var(--cell-x)",
       },
       fontSize: {
         "2xs": ["0.6875rem", { lineHeight: "1rem" }],
+        "3xs": ["0.625rem", { lineHeight: "0.875rem" }],
+      },
+      boxShadow: {
+        // One soft elevation, used only for things that genuinely float.
+        raised: "0 1px 2px 0 hsl(222 30% 11% / 0.05), 0 1px 3px 0 hsl(222 30% 11% / 0.06)",
+        overlay:
+          "0 4px 6px -1px hsl(222 30% 11% / 0.07), 0 10px 24px -4px hsl(222 30% 11% / 0.12)",
       },
       keyframes: {
         "accordion-down": {

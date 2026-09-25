@@ -38,6 +38,7 @@ function ProfitLoss() {
   return (
     <div>
       <PageHeader
+        breadcrumbs={[{ label: "Reports" }, { label: "Profit & Loss" }]}
         title="Profit & Loss"
         description="Revenue less the cost of earning it, down to the result for the period."
       >
@@ -58,9 +59,9 @@ function ProfitLoss() {
           </CardContent>
         </Card>
       ) : (
-        <Card>
+        <Card className="mx-auto max-w-4xl">
           <CardContent className="p-0">
-            <div className="p-5 pb-0">
+            <div className="px-5 pt-5">
               <ReportMeta
                 companyName={data.meta.companyName}
                 title="Statement of Profit or Loss"

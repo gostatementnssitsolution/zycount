@@ -8,7 +8,6 @@ import {
   CartesianGrid,
   ComposedChart,
   Line,
-  ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
@@ -42,6 +41,38 @@ const GRID = "hsl(var(--border))";
 
 function compact(value: number, currency: string): string {
   return formatMoney(String(value), { currency, compact: true, showSymbol: false });
+}
+
+/**
+ * The chart's own width, observed rather than inferred.
+ *
+ * Recharts' ResponsiveContainer takes its measurement when it mounts; inside a
+ * grid track that has not settled yet it captures a narrower width and never
+ * revises it, so the bars end up on a different scale from the axis. Watching
+ * the element with a ResizeObserver and handing the chart an explicit width
+ * keeps the two in step through every reflow.
+ */
+function useMeasuredWidth<T extends HTMLElement>(): [React.RefObject<T>, number] {
+  const ref = React.useRef<T>(null);
+  const [width, setWidth] = React.useState(0);
+
+  React.useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+
+    const observer = new ResizeObserver((entries) => {
+      const measured = entries[0]?.contentRect.width ?? 0;
+      // Round to whole pixels so sub-pixel jitter does not re-render the chart.
+      setWidth((current) => (Math.abs(current - measured) > 0.5 ? Math.round(measured) : current));
+    });
+
+    observer.observe(element);
+    setWidth(Math.round(element.clientWidth));
+
+    return () => observer.disconnect();
+  }, []);
+
+  return [ref, width];
 }
 
 /** Shared tooltip. Values are right-aligned and tabular, like the statements. */
@@ -116,6 +147,7 @@ export function TrendChart({
   className?: string;
 }) {
   const [showTable, setShowTable] = React.useState(false);
+  const [trendRef, trendWidth] = useMeasuredWidth<HTMLDivElement>();
 
   const chartData = React.useMemo(
     () =>
@@ -162,9 +194,14 @@ export function TrendChart({
             No posted activity in this company yet.
           </p>
         ) : (
-          <div className="mt-3 h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: -12 }}>
+          <div ref={trendRef} className="mt-3 h-64 w-full">
+            {trendWidth > 0 && (
+            <ComposedChart
+              width={trendWidth}
+              height={256}
+              data={chartData}
+              margin={{ top: 4, right: 4, bottom: 0, left: -12 }}
+            >
                 <CartesianGrid stroke={GRID} strokeDasharray="3 3" vertical={false} />
                 <XAxis
                   dataKey="label"
@@ -208,8 +245,8 @@ export function TrendChart({
                   dot={{ r: 3, strokeWidth: 2, fill: "hsl(var(--card))" }}
                   activeDot={{ r: 5 }}
                 />
-              </ComposedChart>
-            </ResponsiveContainer>
+            </ComposedChart>
+            )}
           </div>
         )}
       </CardContent>
@@ -330,6 +367,8 @@ export function CashChart({
   currency: string;
   className?: string;
 }) {
+  const [cashRef, cashWidth] = useMeasuredWidth<HTMLDivElement>();
+
   const chartData = React.useMemo(
     () => data.map((point) => ({ label: point.label, cash: toCents(point.cash) / 100 })),
     [data],
@@ -345,21 +384,28 @@ export function CashChart({
       </CardHeader>
 
       <CardContent>
-        <div className="h-44">
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: -12 }}>
+        <div ref={cashRef} className="h-40 w-full">
+          {cashWidth > 0 && (
+          <ComposedChart
+            width={cashWidth}
+            height={160}
+            data={chartData}
+            margin={{ top: 4, right: 4, bottom: 0, left: -12 }}
+          >
               <CartesianGrid stroke={GRID} strokeDasharray="3 3" vertical={false} />
               <XAxis
                 dataKey="label"
-                tick={{ fill: AXIS, fontSize: 11 }}
+                interval={0}
+                tick={{ fill: AXIS, fontSize: 10 }}
                 tickLine={false}
                 axisLine={{ stroke: GRID }}
+                tickFormatter={(value: string) => value.slice(0, 3)}
               />
               <YAxis
-                tick={{ fill: AXIS, fontSize: 11 }}
+                tick={{ fill: AXIS, fontSize: 10 }}
                 tickLine={false}
                 axisLine={false}
-                width={56}
+                width={48}
                 tickFormatter={(value: number) => compact(value, currency)}
               />
               <Tooltip
@@ -375,8 +421,8 @@ export function CashChart({
                 dot={{ r: 3, strokeWidth: 2, fill: "hsl(var(--card))" }}
                 activeDot={{ r: 5 }}
               />
-            </ComposedChart>
-          </ResponsiveContainer>
+          </ComposedChart>
+          )}
         </div>
       </CardContent>
     </Card>

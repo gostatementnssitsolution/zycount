@@ -40,7 +40,7 @@ export function SectionRows({
     <>
       <TableRow className="border-0">
         <TableCell colSpan={showComparison ? 3 : 2} className="pb-1 pl-4 pt-5">
-          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <span className="text-3xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
             {section.title}
           </span>
         </TableCell>
@@ -48,7 +48,7 @@ export function SectionRows({
 
       {section.lines.map((line) => (
         <TableRow key={line.accountId ?? line.name} className="border-0">
-          <TableCell className="py-1 pl-8">
+          <TableCell className="py-0.5 pl-8">
             {line.accountId ? (
               <Link
                 href={`/accounting/general-ledger?accountId=${line.accountId}${
@@ -64,12 +64,12 @@ export function SectionRows({
             )}
           </TableCell>
 
-          <TableCell numeric className={cn("py-1", !showComparison && "pr-4")}>
+          <TableCell numeric className={cn("py-0.5", !showComparison && "pr-4")}>
             <Money value={line.amount} currency={currency} dashOnZero />
           </TableCell>
 
           {showComparison && (
-            <TableCell numeric className="py-1 pr-4 text-muted-foreground">
+            <TableCell numeric className="py-0.5 pr-4 text-muted-foreground">
               <Money value={line.previousAmount ?? "0.00"} currency={currency} dashOnZero />
             </TableCell>
           )}
@@ -123,24 +123,32 @@ export function TotalRow({
   colorSign?: boolean;
 }) {
   return (
-    <TableRow className={cn("border-0", strong && "bg-muted/40")}>
-      <TableCell className={cn("py-2.5 pl-4", strong ? "text-base font-semibold" : "font-semibold")}>
+    <TableRow className="border-0">
+      <TableCell className={cn("py-2 pl-4", strong ? "text-[15px] font-semibold" : "font-semibold")}>
         {label}
       </TableCell>
 
       <TableCell
         numeric
         className={cn(
-          "border-y py-2.5",
+          "py-2",
+          strong
+            ? "border-y-2 border-border-strong text-[15px] font-semibold"
+            : "border-t border-border-strong font-semibold",
           !showComparison && "pr-4",
-          strong ? "text-base font-semibold" : "font-semibold",
         )}
       >
         <Money value={value} currency={currency} colorSign={colorSign} />
       </TableCell>
 
       {showComparison && (
-        <TableCell numeric className="border-y py-2.5 pr-4 font-medium text-muted-foreground">
+        <TableCell
+          numeric
+          className={cn(
+            "py-2 pr-4 font-medium text-muted-foreground",
+            strong ? "border-y-2 border-border-strong" : "border-t border-border-strong",
+          )}
+        >
           <Money value={previousValue ?? "0.00"} currency={currency} />
         </TableCell>
       )}

@@ -1,20 +1,26 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
 import { AuthProvider } from "@/providers/auth-provider";
 import { QueryProvider } from "@/providers/query-provider";
 import { ThemeProvider } from "@/providers/theme-provider";
 
-const sans = Inter({
+// IBM Plex was designed for technical and data-heavy interfaces. It gives the
+// product a voice of its own and, unlike a display face, stays legible at the
+// 12px a dense ledger needs.
+const sans = IBM_Plex_Sans({
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-sans",
   display: "swap",
 });
 
-// Account codes and references need a fixed-width face to scan down a column.
-const mono = JetBrains_Mono({
+// Account codes, references and figures need a fixed-width face to scan down
+// a column; the Mono is cut to match the Sans.
+const mono = IBM_Plex_Mono({
   subsets: ["latin"],
+  weight: ["400", "500", "600"],
   variable: "--font-mono",
   display: "swap",
 });
@@ -32,8 +38,8 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f8fafc" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a1020" },
+    { media: "(prefers-color-scheme: light)", color: "#f5f6fa" },
+    { media: "(prefers-color-scheme: dark)", color: "#0d1117" },
   ],
 };
 

@@ -40,7 +40,7 @@ export function Topbar({ onOpenMobileNav }: { onOpenMobileNav: () => void }) {
   const setCommandPaletteOpen = useUiStore((state) => state.setCommandPaletteOpen);
 
   return (
-    <header className="print-hidden sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b bg-background/85 px-4 backdrop-blur">
+    <header className="print-hidden sticky top-0 z-30 flex h-12 shrink-0 items-center gap-2 border-b border-border bg-background/90 px-3 backdrop-blur-sm">
       <Button
         variant="ghost"
         size="icon-sm"
@@ -57,12 +57,12 @@ export function Topbar({ onOpenMobileNav }: { onOpenMobileNav: () => void }) {
         type="button"
         onClick={() => setCommandPaletteOpen(true)}
         className={cn(
-          "ml-2 hidden h-9 w-full max-w-sm items-center gap-2 rounded-md border border-input bg-card px-3 text-sm text-muted-foreground shadow-sm transition-colors hover:bg-accent md:flex",
+          "ml-1 hidden h-7 w-full max-w-xs items-center gap-2 rounded-md border border-border bg-sunk/60 px-2.5 text-xs text-muted-foreground transition-colors hover:bg-accent md:flex",
         )}
       >
-        <Search className="size-4 shrink-0" aria-hidden />
+        <Search className="size-3.5 shrink-0" aria-hidden />
         <span className="truncate">Search or jump to…</span>
-        <kbd className="ml-auto hidden shrink-0 rounded border bg-muted px-1.5 font-mono text-2xs lg:inline-block">
+        <kbd className="ml-auto hidden shrink-0 rounded border border-border bg-card px-1 font-mono text-3xs lg:inline-block">
           ⌘K
         </kbd>
       </button>
@@ -81,7 +81,7 @@ export function Topbar({ onOpenMobileNav }: { onOpenMobileNav: () => void }) {
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              className="grid size-8 shrink-0 place-items-center rounded-full bg-brand text-xs font-semibold text-brand-foreground"
+              className="grid size-7 shrink-0 place-items-center rounded-full bg-primary text-2xs font-semibold text-primary-foreground"
               aria-label="Account menu"
             >
               {user ? initials(user.name) : <UserCircle className="size-4" />}

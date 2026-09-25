@@ -1,7 +1,7 @@
 "use client";
 
 import { PERMISSIONS } from "@zycount/shared";
-import { Download, ScrollText, Search } from "lucide-react";
+import { ScrollText, Search } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import * as React from "react";
@@ -12,6 +12,13 @@ import { Pagination } from "@/components/common/pagination";
 import { PeriodPicker } from "@/components/common/period-picker";
 import { RequirePermission } from "@/components/common/permission-gate";
 import { PageHeader } from "@/components/layout/page-header";
+import {
+  DensityControl,
+  ResultCount,
+  Toolbar,
+  ToolbarDivider,
+  ToolbarSpacer,
+} from "@/components/layout/toolbar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -74,33 +81,35 @@ function GeneralLedger() {
   return (
     <div>
       <PageHeader
+        breadcrumbs={[{ label: "Accounting" }, { label: "General Ledger" }]}
         title="General Ledger"
         description="Every posted line, with a running balance. Click any row to open its journal."
       />
 
       <Card>
         <CardContent className="p-0">
-          <div className="flex flex-wrap items-center gap-3 border-b p-4">
-            <div className="min-w-[18rem] flex-1">
+          <Toolbar>
+            <div className="min-w-[16rem] flex-1">
               <AccountPicker
                 value={accountId}
                 onChange={setAccountId}
                 placeholder="All accounts"
+                className="h-8 text-[13px]"
               />
             </div>
 
-            <PeriodPicker value={periodId} onChange={setPeriodId} className="w-[13rem]" includeAll />
+            <PeriodPicker value={periodId} onChange={setPeriodId} className="h-8 w-[11rem] text-[13px]" includeAll />
 
-            <div className="relative min-w-[12rem] flex-1">
+            <div className="relative min-w-[11rem] flex-1">
               <Search
-                className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
                 aria-hidden
               />
               <Input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Search reference or description…"
-                className="pl-8"
+                className="h-8 pl-8 text-[13px]"
                 aria-label="Search the ledger"
               />
             </div>
@@ -110,10 +119,15 @@ function GeneralLedger() {
                 Clear account
               </Button>
             )}
-          </div>
+
+            <ToolbarSpacer />
+            {data && <ResultCount shown={data.rows.length} total={data.total} />}
+            <ToolbarDivider />
+            <DensityControl />
+          </Toolbar>
 
           {data?.account && (
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-muted/30 px-4 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-sunk/60 px-4 py-2.5">
               <div>
                 <span className="font-mono text-xs text-muted-foreground">
                   {data.account.code}
@@ -158,7 +172,7 @@ function GeneralLedger() {
             />
           ) : (
             <>
-              <Table>
+              <Table stickyHeader containerClassName="max-h-[66vh]">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="pl-4">Date</TableHead>

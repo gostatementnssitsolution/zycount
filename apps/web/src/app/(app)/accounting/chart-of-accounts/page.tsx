@@ -23,7 +23,8 @@ import { AccountDialog } from "@/components/accounting/account-dialog";
 import { EmptyState } from "@/components/common/empty-state";
 import { ErrorState } from "@/components/common/error-state";
 import { PermissionGate, RequirePermission } from "@/components/common/permission-gate";
-import { PageHeader } from "@/components/layout/page-header";
+import { HeaderMeta, PageHeader } from "@/components/layout/page-header";
+import { Toolbar, ToolbarSpacer } from "@/components/layout/toolbar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -79,11 +80,16 @@ function ChartOfAccounts() {
   return (
     <div>
       <PageHeader
+        breadcrumbs={[{ label: "Accounting" }, { label: "Chart of Accounts" }]}
         title="Chart of Accounts"
-        description={
-          totals.total > 0
-            ? `${totals.total} accounts · ${totals.postable} accept postings`
-            : "The tree of ledger accounts this company posts to."
+        description="The tree of ledger accounts this company posts to."
+        meta={
+          totals.total > 0 ? (
+            <>
+              <HeaderMeta label="Accounts" value={totals.total} />
+              <HeaderMeta label="Accept postings" value={totals.postable} />
+            </>
+          ) : null
         }
         actions={
           <PermissionGate permission={PERMISSIONS.ACCOUNT_CREATE}>
@@ -103,23 +109,23 @@ function ChartOfAccounts() {
 
       <Card>
         <CardContent className="p-0">
-          <div className="flex flex-wrap items-center gap-3 border-b p-4">
-            <div className="relative min-w-[13rem] flex-1">
+          <Toolbar>
+            <div className="relative min-w-[12rem] flex-1">
               <Search
-                className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
                 aria-hidden
               />
               <Input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Search by code or name…"
-                className="pl-8"
+                className="h-8 pl-8 text-[13px]"
                 aria-label="Search accounts"
               />
             </div>
 
             <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-[11rem]">
+              <SelectTrigger className="h-8 w-[10rem] text-[13px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -132,11 +138,12 @@ function ChartOfAccounts() {
               </SelectContent>
             </Select>
 
-            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            <ToolbarSpacer />
+            <label className="flex items-center gap-2 text-xs text-muted-foreground">
               <Switch checked={includeInactive} onCheckedChange={setIncludeInactive} />
               Show archived
             </label>
-          </div>
+          </Toolbar>
 
           <div className="p-2">
             {error ? (
@@ -163,6 +170,7 @@ function ChartOfAccounts() {
                     key={node.id}
                     node={node}
                     expandAll={search.length > 0}
+                    showType={search.length > 0 || typeFilter !== "all"}
                     onEdit={(account) => {
                       setEditing(account);
                       setParentFor(null);
@@ -195,12 +203,15 @@ function AccountRow({
   node,
   depth = 0,
   expandAll,
+  showType,
   onEdit,
   onAddChild,
 }: {
   node: AccountTreeNode;
   depth?: number;
   expandAll: boolean;
+  /** Only while a search flattens the tree, where the grouping is lost. */
+  showType: boolean;
   onEdit: (account: AccountTreeNode) => void;
   onAddChild: (account: AccountTreeNode) => void;
 }) {
@@ -228,7 +239,7 @@ function AccountRow({
     <li role="treeitem" aria-expanded={hasChildren ? open : undefined}>
       <div
         className={cn(
-          "group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-accent/60",
+          "group flex items-center gap-2 rounded px-2 py-1 text-[13px] transition-colors hover:bg-sunk",
           !node.isActive && "opacity-55",
         )}
         style={{ paddingLeft: `${depth * 1.25 + 0.5}rem` }}
@@ -251,9 +262,9 @@ function AccountRow({
         <span className={cn("truncate", !node.isPostable && "font-medium")}>{node.name}</span>
 
         {!node.isPostable && (
-          <Badge variant="outline" className="shrink-0 font-normal">
+          <span className="shrink-0 text-3xs uppercase tracking-wider text-muted-foreground">
             Heading
-          </Badge>
+          </span>
         )}
         {node.isSystem && (
           <Lock className="size-3 shrink-0 text-muted-foreground" aria-label="System account" />
@@ -264,9 +275,11 @@ function AccountRow({
           </Badge>
         )}
 
-        <Badge variant="outline" className="ml-auto shrink-0 font-normal">
-          {ACCOUNT_TYPE_LABELS[node.type as AccountType]}
-        </Badge>
+        {showType && (
+          <Badge variant="outline" className="ml-auto shrink-0 font-normal">
+            {ACCOUNT_TYPE_LABELS[node.type as AccountType]}
+          </Badge>
+        )}
 
         <PermissionGate permission={PERMISSIONS.ACCOUNT_EDIT}>
           <DropdownMenu>
@@ -307,6 +320,7 @@ function AccountRow({
               node={child}
               depth={depth + 1}
               expandAll={expandAll}
+              showType={showType}
               onEdit={onEdit}
               onAddChild={onAddChild}
             />
