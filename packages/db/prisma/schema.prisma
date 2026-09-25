@@ -1,0 +1,258 @@
+// Zycount — Prisma schema
+// Phase 1 (Core Accounting) tables. Designed so later phases extend without
+// breaking migrations. See docs/spec/03-data-dictionary.md for the full model.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Tenancy & organisation
+// ─────────────────────────────────────────────────────────────
+
+model Organization {
+  id        String    @id @default(uuid()) @db.Uuid
+  name      String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  companies Company[]
+  users     User[]
+}
+
+model Company {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  name           String
+  registrationNo String?
+  baseCurrency   String   @default("MYR") @db.Char(3)
+  address        String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  branches       Branch[]
+  accounts       Account[]
+  fiscalPeriods  FiscalPeriod[]
+  journalEntries JournalEntry[]
+
+  @@index([organizationId])
+}
+
+model Branch {
+  id        String   @id @default(uuid()) @db.Uuid
+  companyId String   @db.Uuid
+  company   Company  @relation(fields: [companyId], references: [id])
+  code      String
+  name      String
+  createdAt DateTime @default(now())
+
+  @@unique([companyId, code])
+  @@index([companyId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Identity, roles & permissions (RBAC)
+// ─────────────────────────────────────────────────────────────
+
+model User {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  email          String   @unique
+  passwordHash   String
+  name           String
+  isActive       Boolean  @default(true)
+  mfaEnabled     Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  roles          UserRole[]
+  auditLogs      AuditLog[]
+
+  @@index([organizationId])
+}
+
+model Role {
+  id          String           @id @default(uuid()) @db.Uuid
+  name        String           @unique // SuperAdmin, Admin, Accountant, ...
+  description String?
+  users       UserRole[]
+  permissions RolePermission[]
+}
+
+model Permission {
+  id     String           @id @default(uuid()) @db.Uuid
+  code   String           @unique // e.g. "journal.post", "invoice.create"
+  roles  RolePermission[]
+}
+
+model UserRole {
+  userId String @db.Uuid
+  roleId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id])
+  role   Role   @relation(fields: [roleId], references: [id])
+
+  @@id([userId, roleId])
+}
+
+model RolePermission {
+  roleId       String     @db.Uuid
+  permissionId String     @db.Uuid
+  role         Role       @relation(fields: [roleId], references: [id])
+  permission   Permission @relation(fields: [permissionId], references: [id])
+
+  @@id([roleId, permissionId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Chart of accounts
+// ─────────────────────────────────────────────────────────────
+
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  EXPENSE
+  COST_OF_SALES
+}
+
+model Account {
+  id          String      @id @default(uuid()) @db.Uuid
+  companyId   String      @db.Uuid
+  company     Company     @relation(fields: [companyId], references: [id])
+  code        String // e.g. "1300"
+  name        String // e.g. "Accounts Receivable"
+  type        AccountType
+  parentId    String?     @db.Uuid
+  parent      Account?    @relation("AccountTree", fields: [parentId], references: [id])
+  children    Account[]   @relation("AccountTree")
+  isPostable  Boolean     @default(true) // leaf accounts only
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+
+  journalLines JournalLine[]
+
+  @@unique([companyId, code])
+  @@index([companyId, type])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Fiscal periods & period locking
+// ─────────────────────────────────────────────────────────────
+
+enum PeriodStatus {
+  OPEN
+  CLOSED
+}
+
+model FiscalPeriod {
+  id        String       @id @default(uuid()) @db.Uuid
+  companyId String       @db.Uuid
+  company   Company      @relation(fields: [companyId], references: [id])
+  name      String // "January 2026"
+  startDate DateTime     @db.Date
+  endDate   DateTime     @db.Date
+  status    PeriodStatus @default(OPEN)
+  closedAt  DateTime?
+  closedBy  String?      @db.Uuid
+
+  journalEntries JournalEntry[]
+
+  @@unique([companyId, startDate, endDate])
+  @@index([companyId, status])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Journals & general ledger
+// Posted entries are immutable: corrections are made by reversal.
+// ─────────────────────────────────────────────────────────────
+
+enum JournalStatus {
+  DRAFT
+  POSTED
+  REVERSED
+}
+
+enum JournalSource {
+  MANUAL
+  INVOICE
+  BILL
+  PAYMENT
+  PAYROLL
+  ASSET
+  INVENTORY
+  BANK
+  SYSTEM
+}
+
+model JournalEntry {
+  id             String        @id @default(uuid()) @db.Uuid
+  companyId      String        @db.Uuid
+  company        Company       @relation(fields: [companyId], references: [id])
+  fiscalPeriodId String        @db.Uuid
+  fiscalPeriod   FiscalPeriod  @relation(fields: [fiscalPeriodId], references: [id])
+  reference      String // e.g. "JV-2026-000001"
+  date           DateTime      @db.Date
+  description    String?
+  status         JournalStatus @default(DRAFT)
+  source         JournalSource @default(MANUAL)
+  sourceId       String?       @db.Uuid // link back to originating document
+
+  // reversal linkage
+  reversalOfId   String?       @unique @db.Uuid
+  reversalOf     JournalEntry? @relation("Reversal", fields: [reversalOfId], references: [id])
+  reversedBy     JournalEntry? @relation("Reversal")
+
+  postedAt       DateTime?
+  postedBy       String?       @db.Uuid
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  lines          JournalLine[]
+
+  @@unique([companyId, reference])
+  @@index([companyId, date])
+  @@index([companyId, status])
+  @@index([source, sourceId])
+}
+
+model JournalLine {
+  id             String       @id @default(uuid()) @db.Uuid
+  journalEntryId String       @db.Uuid
+  journalEntry   JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  accountId      String       @db.Uuid
+  account        Account      @relation(fields: [accountId], references: [id])
+  // Amounts in the company base currency, minor-unit-safe via Decimal.
+  debit          Decimal      @default(0) @db.Decimal(18, 2)
+  credit         Decimal      @default(0) @db.Decimal(18, 2)
+  description    String?
+  lineNo         Int
+
+  @@index([journalEntryId])
+  @@index([accountId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Audit log — append-only trail for every significant action
+// ─────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String?  @db.Uuid
+  user       User?    @relation(fields: [userId], references: [id])
+  action     String // "journal.post", "period.close", ...
+  entityType String
+  entityId   String?
+  metadata   Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
