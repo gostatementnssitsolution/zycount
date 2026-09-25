@@ -5,7 +5,7 @@ import {
   PERMISSIONS,
   type JournalSource,
 } from "@zycount/shared";
-import { BookOpen, Download, Plus, Search, X } from "lucide-react";
+import { BookOpen, Plus, Search } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
@@ -14,7 +14,15 @@ import { ErrorState } from "@/components/common/error-state";
 import { Pagination } from "@/components/common/pagination";
 import { PeriodPicker } from "@/components/common/period-picker";
 import { PermissionGate, RequirePermission } from "@/components/common/permission-gate";
-import { PageHeader } from "@/components/layout/page-header";
+import { HeaderMeta, PageHeader } from "@/components/layout/page-header";
+import {
+  ClearFilters,
+  DensityControl,
+  ResultCount,
+  Toolbar,
+  ToolbarDivider,
+  ToolbarSpacer,
+} from "@/components/layout/toolbar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -76,8 +84,12 @@ function Journals() {
     sort: "-date",
   });
 
-  const hasFilters =
-    Boolean(debouncedSearch) || status !== "all" || source !== "all" || Boolean(periodId);
+  const filterCount =
+    (debouncedSearch ? 1 : 0) +
+    (status !== "all" ? 1 : 0) +
+    (source !== "all" ? 1 : 0) +
+    (periodId ? 1 : 0);
+  const hasFilters = filterCount > 0;
 
   const clearFilters = () => {
     setSearch("");
@@ -89,8 +101,12 @@ function Journals() {
   return (
     <div>
       <PageHeader
+        breadcrumbs={[{ label: "Accounting" }, { label: "Journal Entries" }]}
         title="Journal Entries"
         description="Every accounting event, as a balanced set of debits and credits."
+        meta={
+          data ? <HeaderMeta label="Total" value={data.total.toLocaleString()} /> : null
+        }
         actions={
           <PermissionGate permission={PERMISSIONS.JOURNAL_CREATE}>
             <Button onClick={() => router.push("/accounting/journals/new")}>
@@ -103,23 +119,23 @@ function Journals() {
 
       <Card>
         <CardContent className="p-0">
-          <div className="flex flex-wrap items-center gap-3 border-b p-4">
-            <div className="relative min-w-[13rem] flex-1">
+          <Toolbar>
+            <div className="relative min-w-[12rem] flex-1">
               <Search
-                className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
                 aria-hidden
               />
               <Input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Search reference or description…"
-                className="pl-8"
+                className="h-8 pl-8 text-[13px]"
                 aria-label="Search journals"
               />
             </div>
 
             <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger className="w-[9.5rem]">
+              <SelectTrigger className="h-8 w-[8.5rem] text-[13px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -131,7 +147,7 @@ function Journals() {
             </Select>
 
             <Select value={source} onValueChange={setSource}>
-              <SelectTrigger className="w-[10.5rem]">
+              <SelectTrigger className="h-8 w-[9.5rem] text-[13px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -144,15 +160,15 @@ function Journals() {
               </SelectContent>
             </Select>
 
-            <PeriodPicker value={periodId} onChange={setPeriodId} className="w-[12rem]" includeAll />
+            <PeriodPicker value={periodId} onChange={setPeriodId} className="h-8 w-[11rem] text-[13px]" includeAll />
 
-            {hasFilters && (
-              <Button variant="ghost" size="sm" onClick={clearFilters}>
-                <X />
-                Clear
-              </Button>
-            )}
-          </div>
+            <ClearFilters onClear={clearFilters} count={filterCount} />
+
+            <ToolbarSpacer />
+            {data && <ResultCount shown={data.data.length} total={data.total} />}
+            <ToolbarDivider />
+            <DensityControl />
+          </Toolbar>
 
           {error ? (
             <div className="p-4">
@@ -189,7 +205,7 @@ function Journals() {
             />
           ) : (
             <>
-              <Table>
+              <Table stickyHeader containerClassName="max-h-[68vh]">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="pl-4">Reference</TableHead>

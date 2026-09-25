@@ -48,6 +48,7 @@ function UsersAndRoles() {
   return (
     <div>
       <PageHeader
+        breadcrumbs={[{ label: "Administration" }, { label: "Users & Roles" }]}
         title="Users & Roles"
         description="Who can reach this organisation, and what each of them is allowed to do."
       />

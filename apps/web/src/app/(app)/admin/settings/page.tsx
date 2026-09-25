@@ -106,6 +106,7 @@ function CompanySettings() {
   return (
     <div>
       <PageHeader
+        breadcrumbs={[{ label: "Administration" }, { label: "Settings" }]}
         title="Company Settings"
         description="The profile behind every report and document this company produces."
       />

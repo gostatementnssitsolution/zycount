@@ -3,58 +3,69 @@
 @tailwind utilities;
 
 /**
- * Design tokens. Light is the default; `.dark` on <html> swaps the palette.
- * Both themes are tuned for WCAG AA contrast on text and interactive elements
- * (docs/spec/07 §44).
+ * Zycount design tokens.
+ *
+ * The palette is ink-led rather than brand-led: primary actions are near-black,
+ * and the accent is reserved for what is interactive or selected. That leaves
+ * green, red and amber free to mean only what they mean in a ledger — a gain, a
+ * loss, a warning — instead of competing with decoration.
  */
 @layer base {
   :root {
-    --background: 210 40% 98%;
-    --foreground: 222 47% 11%;
+    /* Neutrals carry a faint cool bias so they sit under the accent without
+       looking like undithered grey. */
+    --surface: 220 24% 97%;
+    --background: 220 24% 97%;
+    --foreground: 222 30% 11%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 222 30% 11%;
+    --sunk: 220 22% 95%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 222 30% 11%;
 
-    --brand: 221 83% 45%;
+    /* Primary is ink, not a hue: the strongest control on screen reads as
+       weight rather than colour. */
+    --primary: 222 34% 13%;
+    --primary-foreground: 220 24% 98%;
+
+    /* The accent marks interaction — links, focus, the active row. */
+    --brand: 243 62% 52%;
     --brand-foreground: 0 0% 100%;
-    --brand-muted: 221 83% 96%;
+    --brand-muted: 243 70% 96%;
 
-    --primary: 222 47% 15%;
-    --primary-foreground: 210 40% 98%;
+    --secondary: 220 20% 94%;
+    --secondary-foreground: 222 30% 18%;
 
-    --secondary: 210 40% 94%;
-    --secondary-foreground: 222 47% 15%;
+    --muted: 220 20% 94%;
+    --muted-foreground: 220 12% 44%;
 
-    --muted: 210 40% 94%;
-    --muted-foreground: 215 16% 42%;
+    --accent: 220 22% 94%;
+    --accent-foreground: 222 30% 15%;
 
-    --accent: 210 40% 94%;
-    --accent-foreground: 222 47% 15%;
-
-    --destructive: 0 72% 45%;
-    --destructive-foreground: 0 0% 100%;
-
-    --success: 152 62% 30%;
+    /* Semantic colours, reserved. Never used for emphasis or branding. */
+    --success: 160 84% 24%;
     --success-foreground: 0 0% 100%;
-
-    --warning: 32 90% 40%;
+    --destructive: 348 77% 40%;
+    --destructive-foreground: 0 0% 100%;
+    --warning: 30 90% 36%;
     --warning-foreground: 0 0% 100%;
-
-    --info: 199 89% 38%;
+    --info: 205 84% 36%;
     --info-foreground: 0 0% 100%;
 
-    --border: 214 32% 89%;
-    --input: 214 32% 85%;
-    --ring: 221 83% 45%;
+    --border: 220 18% 89%;
+    --border-strong: 220 16% 82%;
+    --input: 220 16% 84%;
+    --ring: 243 62% 52%;
 
-    --sidebar: 222 47% 13%;
-    --sidebar-foreground: 210 40% 96%;
-    --sidebar-muted: 215 20% 62%;
-    --sidebar-accent: 222 40% 20%;
-    --sidebar-border: 222 40% 22%;
+    /* The sidebar is a near-neutral ink, not navy — it recedes instead of
+       competing with the content beside it. */
+    --sidebar: 224 28% 10%;
+    --sidebar-foreground: 220 22% 95%;
+    --sidebar-muted: 220 12% 58%;
+    --sidebar-accent: 224 24% 16%;
+    --sidebar-border: 224 22% 18%;
 
     /* Categorical series, in fixed assignment order. Validated for the light
        surface: OKLCH lightness band, chroma floor, adjacent-pair colour-vision
@@ -67,66 +78,148 @@
     --chart-5: 199 89% 45.1%; /* cyan   #0d98d9 */
     --chart-6: 348 70% 52%;   /* rose   #da2f51 */
 
-    --radius: 0.625rem;
+    --radius: 8px;
+
+    /* Row height and cell padding are variables, so the density control
+       retightens every table at once. */
+    --row-h: 38px;
+    --cell-y: 0.5rem;
+    --cell-x: 0.75rem;
   }
 
-  .dark {
-    --background: 222 47% 7%;
-    --foreground: 210 40% 96%;
+  /* Accountants work down long tables; compact is a first-class mode, not a
+     cosmetic preference. */
+  :root[data-density="compact"] {
+    --row-h: 30px;
+    --cell-y: 0.25rem;
+    --cell-x: 0.625rem;
+  }
 
-    --card: 222 45% 10%;
-    --card-foreground: 210 40% 96%;
+  :root[data-density="relaxed"] {
+    --row-h: 46px;
+    --cell-y: 0.75rem;
+    --cell-x: 1rem;
+  }
 
-    --popover: 222 45% 11%;
-    --popover-foreground: 210 40% 96%;
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
 
-    --brand: 217 91% 62%;
-    --brand-foreground: 222 47% 8%;
-    --brand-muted: 217 60% 18%;
+      --surface: 226 32% 7%;
+      --background: 226 32% 7%;
+      --foreground: 220 24% 94%;
 
-    --primary: 210 40% 96%;
-    --primary-foreground: 222 47% 11%;
+      --card: 224 28% 10%;
+      --card-foreground: 220 24% 94%;
+      --sunk: 224 26% 13%;
 
-    --secondary: 217 33% 17%;
-    --secondary-foreground: 210 40% 96%;
+      --popover: 224 28% 12%;
+      --popover-foreground: 220 24% 94%;
 
-    --muted: 217 33% 16%;
-    --muted-foreground: 215 20% 68%;
+      --primary: 220 24% 94%;
+      --primary-foreground: 224 30% 10%;
 
-    --accent: 217 33% 19%;
-    --accent-foreground: 210 40% 96%;
+      --brand: 243 85% 72%;
+      --brand-foreground: 224 30% 10%;
+      --brand-muted: 243 40% 20%;
 
-    --destructive: 0 72% 58%;
-    --destructive-foreground: 222 47% 8%;
+      --secondary: 224 22% 17%;
+      --secondary-foreground: 220 24% 94%;
 
-    --success: 152 58% 48%;
-    --success-foreground: 222 47% 8%;
+      --muted: 224 22% 16%;
+      --muted-foreground: 220 12% 65%;
 
-    --warning: 38 92% 58%;
-    --warning-foreground: 222 47% 8%;
+      --accent: 224 22% 19%;
+      --accent-foreground: 220 24% 94%;
 
-    --info: 199 89% 58%;
-    --info-foreground: 222 47% 8%;
+      --success: 158 64% 48%;
+      --success-foreground: 224 30% 10%;
+      --destructive: 348 80% 62%;
+      --destructive-foreground: 224 30% 10%;
+      --warning: 36 92% 58%;
+      --warning-foreground: 224 30% 10%;
+      --info: 202 86% 60%;
+      --info-foreground: 224 30% 10%;
 
-    --border: 217 33% 20%;
-    --input: 217 33% 24%;
-    --ring: 217 91% 62%;
+      --border: 224 20% 19%;
+      --border-strong: 224 18% 26%;
+      --input: 224 18% 24%;
+      --ring: 243 85% 72%;
 
-    --sidebar: 222 47% 9%;
-    --sidebar-foreground: 210 40% 94%;
-    --sidebar-muted: 215 20% 60%;
-    --sidebar-accent: 217 33% 17%;
-    --sidebar-border: 217 33% 18%;
+      --sidebar: 226 32% 8%;
+      --sidebar-foreground: 220 22% 92%;
+      --sidebar-muted: 220 12% 56%;
+      --sidebar-accent: 224 22% 15%;
+      --sidebar-border: 224 20% 16%;
 
-    /* The same six hues re-stepped for the dark surface — a selected palette,
-       not an automatic flip. The light steps sit above the dark lightness band
-       and would glare against this background. */
-    --chart-1: 217 91% 54.5%; /* blue   #2172f5 */
-    --chart-2: 38 92% 34.5%;  /* amber  #a96e07 */
-    --chart-3: 280 65% 55.5%; /* purple #a644d7 */
-    --chart-4: 152 58% 36%;   /* green  #27915f */
-    --chart-5: 199 89% 39.5%; /* cyan   #0b86be */
-    --chart-6: 348 75% 50.5%; /* rose   #df2248 */
+      /* The same six hues re-stepped for the dark surface — a selected palette,
+         not an automatic flip. The light steps sit above the dark lightness
+         band and would glare against this background. */
+      --chart-1: 217 91% 54.5%; /* blue   #2172f5 */
+      --chart-2: 38 92% 34.5%;  /* amber  #a96e07 */
+      --chart-3: 280 65% 55.5%; /* purple #a644d7 */
+      --chart-4: 152 58% 36%;   /* green  #27915f */
+      --chart-5: 199 89% 39.5%; /* cyan   #0b86be */
+      --chart-6: 348 75% 50.5%; /* rose   #df2248 */
+    }
+  }
+
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+
+    --surface: 226 32% 7%;
+    --background: 226 32% 7%;
+    --foreground: 220 24% 94%;
+
+    --card: 224 28% 10%;
+    --card-foreground: 220 24% 94%;
+    --sunk: 224 26% 13%;
+
+    --popover: 224 28% 12%;
+    --popover-foreground: 220 24% 94%;
+
+    --primary: 220 24% 94%;
+    --primary-foreground: 224 30% 10%;
+
+    --brand: 243 85% 72%;
+    --brand-foreground: 224 30% 10%;
+    --brand-muted: 243 40% 20%;
+
+    --secondary: 224 22% 17%;
+    --secondary-foreground: 220 24% 94%;
+
+    --muted: 224 22% 16%;
+    --muted-foreground: 220 12% 65%;
+
+    --accent: 224 22% 19%;
+    --accent-foreground: 220 24% 94%;
+
+    --success: 158 64% 48%;
+    --success-foreground: 224 30% 10%;
+    --destructive: 348 80% 62%;
+    --destructive-foreground: 224 30% 10%;
+    --warning: 36 92% 58%;
+    --warning-foreground: 224 30% 10%;
+    --info: 202 86% 60%;
+    --info-foreground: 224 30% 10%;
+
+    --border: 224 20% 19%;
+    --border-strong: 224 18% 26%;
+    --input: 224 18% 24%;
+    --ring: 243 85% 72%;
+
+    --sidebar: 226 32% 8%;
+    --sidebar-foreground: 220 22% 92%;
+    --sidebar-muted: 220 12% 56%;
+    --sidebar-accent: 224 22% 15%;
+    --sidebar-border: 224 20% 16%;
+
+    --chart-1: 217 91% 54.5%;
+    --chart-2: 38 92% 34.5%;
+    --chart-3: 280 65% 55.5%;
+    --chart-4: 152 58% 36%;
+    --chart-5: 199 89% 39.5%;
+    --chart-6: 348 75% 50.5%;
   }
 
   * {
@@ -135,7 +228,7 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    font-feature-settings: "cv05", "ss03";
   }
 
   /* Figures must line up column to column, in every table and every total. */
@@ -144,22 +237,30 @@
     font-feature-settings: "tnum";
   }
 
+  h1, h2, h3, h4 {
+    letter-spacing: -0.014em;
+  }
+
   :focus-visible {
-    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+    @apply outline-none ring-2 ring-ring ring-offset-1 ring-offset-background;
+  }
+
+  ::selection {
+    background: hsl(var(--brand) / 0.22);
   }
 
   ::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
+    width: 11px;
+    height: 11px;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    @apply rounded-full bg-border;
+    @apply rounded-full border-[3px] border-solid border-transparent bg-border-strong bg-clip-content;
   }
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-muted-foreground/40;
+    @apply bg-muted-foreground/50 bg-clip-content;
   }
 }
 
@@ -171,6 +272,11 @@
   .figure-negative::after {
     content: ")";
   }
+
+  /* A hairline that survives on both themes without looking like a border. */
+  .rule {
+    @apply border-b border-border;
+  }
 }
 
 @layer utilities {
@@ -181,6 +287,15 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+
+  /* Column headers that stay put while a long ledger scrolls beneath them. */
+  .sticky-head thead th {
+    @apply sticky top-0 z-10 bg-card;
+  }
+  .sticky-head thead th::after {
+    content: "";
+    @apply absolute inset-x-0 bottom-0 h-px bg-border;
+  }
 }
 
 @media print {
@@ -190,5 +305,9 @@
   body {
     background: white;
     color: black;
+  }
+  .print-full {
+    border: 0 !important;
+    box-shadow: none !important;
   }
 }

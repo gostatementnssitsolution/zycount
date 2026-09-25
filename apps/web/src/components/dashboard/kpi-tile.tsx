@@ -1,19 +1,21 @@
 "use client";
 
-import type { DashboardKpi } from "@zycount/shared";
-import { Info } from "lucide-react";
+import { formatMoney, toCents, type DashboardKpi } from "@zycount/shared";
 import * as React from "react";
-import { Card } from "@/components/ui/card";
 import { Delta, Money } from "@/components/ui/money";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 
 /**
- * KPI tiles (docs/spec/08 §18).
+ * Dashboard figures.
  *
- * The figure leads; the comparison is secondary and explicitly labelled, so a
- * green arrow can never be mistaken for the number itself.
+ * Eight identical tiles give the eye nowhere to land. The result for the period
+ * is the number someone opens this page for, so it gets the size; the rest read
+ * as a supporting strip. Hierarchy here is the difference between a dashboard
+ * and a wall of boxes.
  */
-export function KpiGrid({
+const HEADLINE_KEYS = ["netProfit", "revenue", "cash"];
+
+export function KpiOverview({
   kpis,
   currency,
   comparisonLabel,
@@ -22,55 +24,100 @@ export function KpiGrid({
   currency: string;
   comparisonLabel?: string;
 }) {
+  const byKey = new Map(kpis.map((kpi) => [kpi.key, kpi]));
+  const headline = HEADLINE_KEYS.map((key) => byKey.get(key)).filter(Boolean) as DashboardKpi[];
+  const rest = kpis.filter((kpi) => !HEADLINE_KEYS.includes(kpi.key));
+
   return (
-    <TooltipProvider delayDuration={200}>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {kpis.map((kpi) => (
-          <KpiTile key={kpi.key} kpi={kpi} currency={currency} comparisonLabel={comparisonLabel} />
+    <div className="overflow-hidden rounded-lg border border-border bg-card">
+      <div className="grid divide-y divide-border sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+        {headline.map((kpi, index) => (
+          <Headline
+            key={kpi.key}
+            kpi={kpi}
+            currency={currency}
+            comparisonLabel={comparisonLabel}
+            lead={index === 0}
+          />
         ))}
       </div>
-    </TooltipProvider>
+
+      {rest.length > 0 && (
+        <dl className="grid grid-cols-2 border-t border-border bg-sunk/50 md:grid-cols-5">
+          {rest.map((kpi) => (
+            <Secondary key={kpi.key} kpi={kpi} currency={currency} />
+          ))}
+        </dl>
+      )}
+    </div>
   );
 }
 
-function KpiTile({
+function Headline({
   kpi,
   currency,
   comparisonLabel,
+  lead,
 }: {
   kpi: DashboardKpi;
   currency: string;
   comparisonLabel?: string;
+  lead: boolean;
 }) {
+  const negative = toCents(kpi.value) < 0;
+
   return (
-    <Card className="p-4">
-      <div className="flex items-start justify-between gap-2">
-        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+    <div className="p-4">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-2xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
           {kpi.label}
         </span>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button type="button" className="text-muted-foreground/60 hover:text-muted-foreground">
-              <Info className="size-3.5" aria-label={`What ${kpi.label} means`} />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>{kpi.hint}</TooltipContent>
-        </Tooltip>
+        {kpi.previousValue !== null && (
+          <Delta value={kpi.changePercent} positiveIsGood={kpi.positiveIsGood} />
+        )}
       </div>
 
-      <div className="mt-1.5 text-2xl font-semibold tracking-tight">
+      <div
+        className={cn(
+          "mt-1.5 font-semibold tracking-tight",
+          lead ? "text-[28px] leading-none" : "text-2xl leading-none",
+          // The result is the one figure whose sign is worth colouring.
+          lead && negative && "text-destructive",
+        )}
+      >
         <Money value={kpi.value} currency={currency} showSymbol />
       </div>
 
-      {kpi.previousValue !== null && (
-        <div className="mt-1.5 flex items-center gap-1.5">
+      <p className="mt-2 text-xs text-muted-foreground">
+        {kpi.previousValue !== null && comparisonLabel ? (
+          <>
+            {comparisonLabel}{" "}
+            <span className="tabular">
+              {formatMoney(kpi.previousValue, { currency, showSymbol: true })}
+            </span>
+          </>
+        ) : (
+          kpi.hint
+        )}
+      </p>
+    </div>
+  );
+}
+
+function Secondary({ kpi, currency }: { kpi: DashboardKpi; currency: string }) {
+  return (
+    <div className="border-b border-r border-border/60 px-4 py-3 last:border-r-0">
+      <dt className="truncate text-2xs uppercase tracking-[0.06em] text-muted-foreground" title={kpi.hint}>
+        {kpi.label}
+      </dt>
+      <dd className="mt-0.5 flex flex-wrap items-baseline gap-x-2">
+        <span className="text-sm font-semibold">
+          <Money value={kpi.value} currency={currency} showSymbol />
+        </span>
+        {kpi.previousValue !== null && (
           <Delta value={kpi.changePercent} positiveIsGood={kpi.positiveIsGood} />
-          {comparisonLabel && (
-            <span className="text-2xs text-muted-foreground">{comparisonLabel}</span>
-          )}
-        </div>
-      )}
-    </Card>
+        )}
+      </dd>
+    </div>
   );
 }

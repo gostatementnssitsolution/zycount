@@ -7,10 +7,10 @@ import * as React from "react";
 import { ErrorState } from "@/components/common/error-state";
 import { PeriodPicker, useDefaultPeriod } from "@/components/common/period-picker";
 import { RequirePermission } from "@/components/common/permission-gate";
-import { PageHeader } from "@/components/layout/page-header";
+import { HeaderMeta, PageHeader } from "@/components/layout/page-header";
 import { BusinessHealth } from "@/components/dashboard/business-health";
 import { CashChart, ExpenseMixChart, TrendChart } from "@/components/dashboard/charts";
-import { KpiGrid } from "@/components/dashboard/kpi-tile";
+import { KpiOverview } from "@/components/dashboard/kpi-tile";
 import { QuickActions, WorkspaceTasks } from "@/components/dashboard/workspace";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -47,7 +47,7 @@ export default function DashboardPage() {
 }
 
 function Dashboard() {
-  const { user, activeCompany } = useAuth();
+  const { activeCompany } = useAuth();
   const { periodId: defaultPeriodId, isLoading: periodsLoading } = useDefaultPeriod();
   const [periodId, setPeriodId] = React.useState<string | undefined>();
 
@@ -58,19 +58,25 @@ function Dashboard() {
     comparePrevious: true,
   });
 
-  const firstName = user?.name.split(" ")[0] ?? "there";
-
   return (
     <div className="space-y-6">
       <PageHeader
-        title={`Good day, ${firstName}`}
+        title="Dashboard"
         description={
           activeCompany
-            ? `${activeCompany.name} · figures in ${activeCompany.baseCurrency}`
+            ? `${activeCompany.name} — all figures in ${activeCompany.baseCurrency}`
             : "Select a company to begin."
         }
+        meta={
+          data ? (
+            <>
+              <HeaderMeta label="Period" value={data.meta.label} />
+              <HeaderMeta label="As at" value={formatDate(data.meta.to)} />
+            </>
+          ) : null
+        }
         actions={
-          <PeriodPicker value={effectivePeriodId} onChange={setPeriodId} className="w-[13rem]" />
+          <PeriodPicker value={effectivePeriodId} onChange={setPeriodId} className="w-[12rem]" />
         }
       />
 
@@ -82,21 +88,21 @@ function Dashboard() {
         <EmptyBooks />
       ) : (
         <>
-          <KpiGrid
+          <KpiOverview
             kpis={data.kpis}
             currency={data.meta.currency}
-            comparisonLabel={data.trend.length > 1 ? "vs. previous period" : undefined}
+            comparisonLabel={data.trend.length > 1 ? "Previous period" : undefined}
           />
 
           <QuickActions actions={QUICK_ACTIONS} />
 
-          <div className="grid gap-4 lg:grid-cols-3">
-            <TrendChart data={data.trend} currency={data.meta.currency} className="lg:col-span-2" />
+          <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+            <TrendChart data={data.trend} currency={data.meta.currency} />
             <WorkspaceTasks />
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-3">
-            <CashChart data={data.trend} currency={data.meta.currency} className="lg:col-span-2" />
+          <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+            <CashChart data={data.trend} currency={data.meta.currency} />
             <ExpenseMixChart data={data.accountMix} currency={data.meta.currency} />
           </div>
 

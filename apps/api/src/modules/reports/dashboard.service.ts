@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import {
   addMoney,
   divideSafe,
+  formatMoney,
   fromCents,
   subtractMoney,
   toCents,
@@ -83,7 +84,15 @@ export class DashboardService {
     ];
 
     const trend = await this.buildTrend(companyId, periods);
-    const health = this.buildHealth(profitLoss, balanceSheet, cash, receivables, payables, trend);
+    const health = this.buildHealth(
+      profitLoss,
+      balanceSheet,
+      cash,
+      receivables,
+      payables,
+      trend,
+      profitLoss.meta.currency,
+    );
 
     const recentJournals = await this.prisma.journalEntry.findMany({
       where: { companyId, status: { in: ["POSTED", "REVERSED"] } },
@@ -189,6 +198,7 @@ export class DashboardService {
     receivables: string,
     payables: string,
     trend: DashboardTrendPoint[],
+    currency: string,
   ): BusinessHealthMetric[] {
     const metrics: BusinessHealthMetric[] = [];
 
@@ -279,7 +289,8 @@ export class DashboardService {
     metrics.push({
       key: "netPosition",
       label: "Receivables vs payables",
-      value: subtractMoney(receivables, payables),
+      // Every other metric returns a display string, so this one does too.
+      value: formatMoney(subtractMoney(receivables, payables), { currency, showSymbol: true }),
       detail: "Positive means customers owe more than the business owes suppliers.",
       status: toCents(receivables) >= toCents(payables) ? "good" : "watch",
     });

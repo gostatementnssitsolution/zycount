@@ -2,30 +2,40 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * Table primitives tuned for financial data: dense rows, sticky headers, and
- * numeric columns that align and use tabular figures.
+ * Table primitives for financial data.
+ *
+ * Row height and cell padding come from CSS variables, so the density control
+ * retightens every table in the product at once — an accountant scanning two
+ * hundred ledger lines needs a different row than someone reading a summary.
+ *
+ * Rules are hairlines rather than zebra stripes: stripes fight with the status
+ * tints and the negative-figure colouring that already carry meaning here.
  */
 const Table = React.forwardRef<
   HTMLTableElement,
-  React.HTMLAttributes<HTMLTableElement> & { containerClassName?: string }
->(({ className, containerClassName, ...props }, ref) => (
+  React.HTMLAttributes<HTMLTableElement> & {
+    containerClassName?: string;
+    /** Keeps the column headers visible while a long table scrolls. */
+    stickyHeader?: boolean;
+  }
+>(({ className, containerClassName, stickyHeader, ...props }, ref) => (
   <div className={cn("relative w-full overflow-auto", containerClassName)}>
-    <table ref={ref} className={cn("w-full caption-bottom text-sm", className)} {...props} />
+    <table
+      ref={ref}
+      className={cn("w-full caption-bottom text-[13px]", stickyHeader && "sticky-head", className)}
+      {...props}
+    />
   </div>
 ));
 Table.displayName = "Table";
 
 const TableHeader = React.forwardRef<HTMLTableSectionElement, React.HTMLAttributes<HTMLTableSectionElement>>(
-  ({ className, ...props }, ref) => (
-    <thead ref={ref} className={cn("[&_tr]:border-b", className)} {...props} />
-  ),
+  ({ className, ...props }, ref) => <thead ref={ref} className={cn(className)} {...props} />,
 );
 TableHeader.displayName = "TableHeader";
 
 const TableBody = React.forwardRef<HTMLTableSectionElement, React.HTMLAttributes<HTMLTableSectionElement>>(
-  ({ className, ...props }, ref) => (
-    <tbody ref={ref} className={cn("[&_tr:last-child]:border-0", className)} {...props} />
-  ),
+  ({ className, ...props }, ref) => <tbody ref={ref} className={cn(className)} {...props} />,
 );
 TableBody.displayName = "TableBody";
 
@@ -33,7 +43,7 @@ const TableFooter = React.forwardRef<HTMLTableSectionElement, React.HTMLAttribut
   ({ className, ...props }, ref) => (
     <tfoot
       ref={ref}
-      className={cn("border-t bg-muted/40 font-medium [&>tr]:last:border-b-0", className)}
+      className={cn("border-t-2 border-border-strong bg-sunk/60 font-semibold", className)}
       {...props}
     />
   ),
@@ -47,8 +57,11 @@ const TableRow = React.forwardRef<
   <tr
     ref={ref}
     className={cn(
-      "border-b transition-colors data-[state=selected]:bg-muted",
-      interactive && "cursor-pointer hover:bg-muted/50",
+      "h-row border-b border-border/70 transition-colors last:border-b-0",
+      "data-[state=selected]:bg-brand-muted",
+      // The hover tint is the row's only affordance, so it has to be visible
+      // without shouting: any stronger and a long table starts to flicker.
+      interactive && "cursor-pointer hover:bg-sunk",
       className,
     )}
     {...props}
@@ -62,8 +75,10 @@ const TableHead = React.forwardRef<
 >(({ className, numeric, ...props }, ref) => (
   <th
     ref={ref}
+    scope="col"
     className={cn(
-      "h-10 whitespace-nowrap px-3 text-left align-middle text-xs font-medium uppercase tracking-wide text-muted-foreground",
+      "h-8 whitespace-nowrap px-cell-x text-left align-middle",
+      "text-3xs font-semibold uppercase tracking-[0.07em] text-muted-foreground",
       numeric && "text-right",
       className,
     )}
@@ -78,7 +93,11 @@ const TableCell = React.forwardRef<
 >(({ className, numeric, ...props }, ref) => (
   <td
     ref={ref}
-    className={cn("px-3 py-2 align-middle", numeric && "text-right tabular", className)}
+    className={cn(
+      "px-cell-x py-cell-y align-middle",
+      numeric && "text-right tabular",
+      className,
+    )}
     {...props}
   />
 ));
@@ -86,7 +105,7 @@ TableCell.displayName = "TableCell";
 
 const TableCaption = React.forwardRef<HTMLTableCaptionElement, React.HTMLAttributes<HTMLTableCaptionElement>>(
   ({ className, ...props }, ref) => (
-    <caption ref={ref} className={cn("mt-4 text-sm text-muted-foreground", className)} {...props} />
+    <caption ref={ref} className={cn("mt-3 text-xs text-muted-foreground", className)} {...props} />
   ),
 );
 TableCaption.displayName = "TableCaption";

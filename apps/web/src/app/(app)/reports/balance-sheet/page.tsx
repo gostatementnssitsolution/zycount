@@ -48,6 +48,7 @@ function BalanceSheet() {
   return (
     <div>
       <PageHeader
+        breadcrumbs={[{ label: "Reports" }, { label: "Balance Sheet" }]}
         title="Balance Sheet"
         description="What the business owns, what it owes, and what is left for its owners."
       >
@@ -92,7 +93,7 @@ function BalanceSheet() {
 
           <Card>
             <CardContent className="p-0">
-              <div className="p-5 pb-0">
+              <div className="px-5 pt-5">
                 <ReportMeta
                   companyName={data.meta.companyName}
                   title="Statement of Financial Position"

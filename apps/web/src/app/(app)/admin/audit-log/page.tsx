@@ -60,6 +60,7 @@ function AuditLog() {
   return (
     <div>
       <PageHeader
+        breadcrumbs={[{ label: "Administration" }, { label: "Audit Log" }]}
         title="Audit Log"
         description="Every privileged action, appended and never edited."
       />

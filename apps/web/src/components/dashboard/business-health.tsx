@@ -1,57 +1,62 @@
 import type { BusinessHealthMetric } from "@zycount/shared";
-import { Activity, CircleAlert, CircleCheck, CircleHelp, TriangleAlert } from "lucide-react";
+import { CircleAlert, CircleCheck, CircleHelp, TriangleAlert } from "lucide-react";
 import * as React from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
-/** Status styling paired with an icon, so meaning never rests on colour alone. */
+/**
+ * Business-health panel.
+ *
+ * Each metric carries a status stripe as well as an icon and a word, so what
+ * needs attention is visible in a glance down the left edge — and still
+ * readable in greyscale or to a colour-blind reader.
+ */
 const STATUS = {
-  good: { icon: CircleCheck, className: "text-success", label: "Healthy" },
-  watch: { icon: CircleAlert, className: "text-warning", label: "Watch" },
-  risk: { icon: TriangleAlert, className: "text-destructive", label: "At risk" },
-  unknown: { icon: CircleHelp, className: "text-muted-foreground", label: "Not enough data" },
+  good: { icon: CircleCheck, tone: "text-success", stripe: "bg-success", label: "Healthy" },
+  watch: { icon: CircleAlert, tone: "text-warning", stripe: "bg-warning", label: "Watch" },
+  risk: { icon: TriangleAlert, tone: "text-destructive", stripe: "bg-destructive", label: "At risk" },
+  unknown: { icon: CircleHelp, tone: "text-muted-foreground", stripe: "bg-border-strong", label: "No data" },
 } as const;
 
-/** Business-health panel (docs/spec/08 §19). */
 export function BusinessHealth({ metrics }: { metrics: BusinessHealthMetric[] }) {
   if (metrics.length === 0) return null;
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-center gap-2">
-          <Activity className="size-4 text-muted-foreground" aria-hidden />
-          <CardTitle className="text-base">Business health</CardTitle>
-        </div>
-        <CardDescription>
-          Derived from the posted ledger — each figure traces back to real entries.
-        </CardDescription>
-      </CardHeader>
+    <section className="overflow-hidden rounded-lg border border-border bg-card">
+      <header className="flex items-baseline justify-between gap-3 border-b border-border px-4 py-3">
+        <h2 className="text-sm font-semibold">Business health</h2>
+        <p className="text-xs text-muted-foreground">Derived from the posted ledger</p>
+      </header>
 
-      <CardContent>
-        <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
-          {metrics.map((metric) => {
-            const style = STATUS[metric.status];
-            const Icon = style.icon;
+      <dl className="grid sm:grid-cols-2 lg:grid-cols-3">
+        {metrics.map((metric) => {
+          const style = STATUS[metric.status];
+          const Icon = style.icon;
 
-            return (
-              <div key={metric.key} className="flex items-start gap-2.5">
-                <Icon className={cn("mt-0.5 size-4 shrink-0", style.className)} aria-hidden />
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-baseline gap-x-2">
-                    <span className="text-sm font-medium">{metric.label}</span>
-                    <span className={cn("tabular text-sm font-semibold", style.className)}>
-                      {metric.value}
-                    </span>
-                    <span className="sr-only">{style.label}</span>
-                  </div>
-                  <p className="mt-0.5 text-xs text-muted-foreground">{metric.detail}</p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </CardContent>
-    </Card>
+          return (
+            <div
+              key={metric.key}
+              className="relative border-b border-r border-border/60 py-3 pl-5 pr-4 last:border-r-0"
+            >
+              <span
+                className={cn("absolute inset-y-3 left-0 w-0.5 rounded-r", style.stripe)}
+                aria-hidden
+              />
+
+              <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Icon className={cn("size-3.5 shrink-0", style.tone)} aria-hidden />
+                {metric.label}
+                <span className="sr-only">— {style.label}</span>
+              </dt>
+
+              <dd className={cn("tabular mt-0.5 text-lg font-semibold", style.tone)}>
+                {metric.value}
+              </dd>
+
+              <p className="mt-0.5 text-xs leading-snug text-muted-foreground">{metric.detail}</p>
+            </div>
+          );
+        })}
+      </dl>
+    </section>
   );
 }
