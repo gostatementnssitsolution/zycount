@@ -25,13 +25,20 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # Turbo resolves the order: `@zycount/db` imports `@zycount/shared`, so
+      # naming db first built it against a package that did not exist yet.
       - name: Build
-        run: pnpm --filter @zycount/db build && pnpm build
+        run: pnpm build
 
       - name: Apply migrations
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: pnpm --filter @zycount/db prisma:deploy
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "DATABASE_URL is not configured for this environment; skipping the migration step."
+            exit 0
+          fi
+          pnpm --filter @zycount/db prisma:deploy
 
       # Replace with the platform's own deploy step (Fly, Render, Railway, k8s).
       - name: Deploy API, workers and web
