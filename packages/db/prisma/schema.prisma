@@ -1,6 +1,6 @@
 // Zycount — Prisma schema
-// Phase 1 (Core Accounting) tables. Designed so later phases extend without
-// breaking migrations. See docs/spec/03-data-dictionary.md for the full model.
+// Phase 1 (Core Accounting) tables, fully implemented. Designed so later phases
+// extend without breaking migrations. See docs/spec/03-data-dictionary.md.
 
 generator client {
   provider = "prisma-client-js"
@@ -16,29 +16,42 @@ datasource db {
 // ─────────────────────────────────────────────────────────────
 
 model Organization {
-  id        String    @id @default(uuid()) @db.Uuid
+  id        String   @id @default(uuid()) @db.Uuid
   name      String
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   companies Company[]
   users     User[]
 }
 
 model Company {
-  id             String   @id @default(uuid()) @db.Uuid
-  organizationId String   @db.Uuid
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  name           String
-  registrationNo String?
-  baseCurrency   String   @default("MYR") @db.Char(3)
-  address        String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                   String       @id @default(uuid()) @db.Uuid
+  organizationId       String       @db.Uuid
+  organization         Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name                 String
+  registrationNo       String?
+  taxNo                String?
+  baseCurrency         String       @default("MYR") @db.Char(3)
+  address              String?
+  phone                String?
+  email                String?
+  /// 1 = January … 12 = December. Drives fiscal-period generation.
+  fiscalYearStartMonth Int          @default(1)
+  timezone             String       @default("Asia/Kuala_Lumpur")
+  /// Marks a seeded demo company that may be reset without touching real data.
+  isDemo               Boolean      @default(false)
+  isActive             Boolean      @default(true)
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
 
-  branches       Branch[]
-  accounts       Account[]
-  fiscalPeriods  FiscalPeriod[]
-  journalEntries JournalEntry[]
+  branches        Branch[]
+  accounts        Account[]
+  fiscalPeriods   FiscalPeriod[]
+  journalEntries  JournalEntry[]
+  users           UserCompany[]
+  numberSequences NumberSequence[]
+  accountBalances AccountBalance[]
 
   @@index([organizationId])
 }
@@ -46,9 +59,11 @@ model Company {
 model Branch {
   id        String   @id @default(uuid()) @db.Uuid
   companyId String   @db.Uuid
-  company   Company  @relation(fields: [companyId], references: [id])
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   code      String
   name      String
+  address   String?
+  isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
 
   @@unique([companyId, code])
@@ -60,53 +75,151 @@ model Branch {
 // ─────────────────────────────────────────────────────────────
 
 model User {
-  id             String   @id @default(uuid()) @db.Uuid
-  organizationId String   @db.Uuid
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  email          String   @unique
-  passwordHash   String
-  name           String
-  isActive       Boolean  @default(true)
-  mfaEnabled     Boolean  @default(false)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id               String       @id @default(uuid()) @db.Uuid
+  organizationId   String       @db.Uuid
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  email            String       @unique
+  passwordHash     String
+  name             String
+  isActive         Boolean      @default(true)
+  mfaEnabled       Boolean      @default(false)
+  /// TOTP shared secret; only set once MFA enrolment completes.
+  mfaSecret        String?
+  /// Argon2id hashes of single-use recovery codes.
+  mfaRecoveryCodes String[]     @default([])
+  lastLoginAt      DateTime?
+  failedLoginCount Int          @default(0)
+  lockedUntil      DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
-  roles          UserRole[]
-  auditLogs      AuditLog[]
+  roles         UserRole[]
+  companies     UserCompany[]
+  refreshTokens RefreshToken[]
+  loginHistory  LoginHistory[]
+  auditLogs     AuditLog[]
 
   @@index([organizationId])
 }
 
 model Role {
   id          String           @id @default(uuid()) @db.Uuid
-  name        String           @unique // SuperAdmin, Admin, Accountant, ...
+  name        String           @unique // SuperAdmin, Admin, Accountant, …
   description String?
+  /// System roles ship with the product and cannot be deleted.
+  isSystem    Boolean          @default(true)
+  createdAt   DateTime         @default(now())
   users       UserRole[]
   permissions RolePermission[]
 }
 
 model Permission {
-  id     String           @id @default(uuid()) @db.Uuid
-  code   String           @unique // e.g. "journal.post", "invoice.create"
-  roles  RolePermission[]
+  id          String           @id @default(uuid()) @db.Uuid
+  code        String           @unique // e.g. "journal.post"
+  module      String // "journal"
+  action      String // "post"
+  description String?
+  roles       RolePermission[]
+
+  @@index([module])
 }
 
 model UserRole {
-  userId String @db.Uuid
-  roleId String @db.Uuid
-  user   User   @relation(fields: [userId], references: [id])
-  role   Role   @relation(fields: [roleId], references: [id])
+  userId     String   @db.Uuid
+  roleId     String   @db.Uuid
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  assignedAt DateTime @default(now())
 
   @@id([userId, roleId])
+  @@index([roleId])
 }
 
 model RolePermission {
   roleId       String     @db.Uuid
   permissionId String     @db.Uuid
-  role         Role       @relation(fields: [roleId], references: [id])
-  permission   Permission @relation(fields: [permissionId], references: [id])
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
 
   @@id([roleId, permissionId])
+  @@index([permissionId])
+}
+
+/// Company access scope — a user only sees companies granted here.
+model UserCompany {
+  userId    String   @db.Uuid
+  companyId String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@id([userId, companyId])
+  @@index([companyId])
+}
+
+/// Rotating refresh tokens, revocable per device (docs/spec/06).
+model RefreshToken {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @db.Uuid
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// SHA-256 of the token; the raw value never touches the database.
+  tokenHash  String    @unique
+  family     String    @db.Uuid // rotation family — reuse of a rotated token revokes the family
+  userAgent  String?
+  ipAddress  String?
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  replacedBy String?   @db.Uuid
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+  @@index([family])
+}
+
+model LoginHistory {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String?  @db.Uuid
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  email     String
+  success   Boolean
+  reason    String?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([email, createdAt])
+}
+
+/// De-duplicates posting requests carrying an `Idempotency-Key` header.
+model IdempotencyKey {
+  id           String   @id @default(uuid()) @db.Uuid
+  key          String
+  userId       String?  @db.Uuid
+  endpoint     String
+  requestHash  String
+  statusCode   Int
+  responseBody Json
+  createdAt    DateTime @default(now())
+
+  @@unique([key, endpoint])
+  @@index([createdAt])
+}
+
+/// Gap-free document numbering, e.g. JV-2026-000001.
+model NumberSequence {
+  id        String   @id @default(uuid()) @db.Uuid
+  companyId String   @db.Uuid
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  docType   String // "JV"
+  year      Int
+  prefix    String // "JV"
+  padding   Int      @default(6)
+  next      Int      @default(1)
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, docType, year])
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -122,24 +235,46 @@ enum AccountType {
   COST_OF_SALES
 }
 
+/// Statement grouping used by the P&L / Balance Sheet renderers.
+enum AccountSubType {
+  CURRENT_ASSET
+  NON_CURRENT_ASSET
+  CURRENT_LIABILITY
+  NON_CURRENT_LIABILITY
+  EQUITY
+  OPERATING_REVENUE
+  OTHER_INCOME
+  COST_OF_SALES
+  OPERATING_EXPENSE
+  OTHER_EXPENSE
+}
+
 model Account {
-  id          String      @id @default(uuid()) @db.Uuid
-  companyId   String      @db.Uuid
-  company     Company     @relation(fields: [companyId], references: [id])
-  code        String // e.g. "1300"
-  name        String // e.g. "Accounts Receivable"
+  id          String          @id @default(uuid()) @db.Uuid
+  companyId   String          @db.Uuid
+  company     Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  code        String // "1300"
+  name        String // "Accounts Receivable"
   type        AccountType
-  parentId    String?     @db.Uuid
-  parent      Account?    @relation("AccountTree", fields: [parentId], references: [id])
-  children    Account[]   @relation("AccountTree")
-  isPostable  Boolean     @default(true) // leaf accounts only
-  isActive    Boolean     @default(true)
-  createdAt   DateTime    @default(now())
+  subType     AccountSubType?
+  parentId    String?         @db.Uuid
+  parent      Account?        @relation("AccountTree", fields: [parentId], references: [id])
+  children    Account[]       @relation("AccountTree")
+  description String?
+  /// Only leaf accounts accept postings.
+  isPostable  Boolean         @default(true)
+  isActive    Boolean         @default(true)
+  /// System accounts are referenced by posting rules and cannot be deleted.
+  isSystem    Boolean         @default(false)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
 
   journalLines JournalLine[]
+  balances     AccountBalance[]
 
   @@unique([companyId, code])
   @@index([companyId, type])
+  @@index([companyId, parentId])
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -152,19 +287,28 @@ enum PeriodStatus {
 }
 
 model FiscalPeriod {
-  id        String       @id @default(uuid()) @db.Uuid
-  companyId String       @db.Uuid
-  company   Company      @relation(fields: [companyId], references: [id])
-  name      String // "January 2026"
-  startDate DateTime     @db.Date
-  endDate   DateTime     @db.Date
-  status    PeriodStatus @default(OPEN)
-  closedAt  DateTime?
-  closedBy  String?      @db.Uuid
+  id          String       @id @default(uuid()) @db.Uuid
+  companyId   String       @db.Uuid
+  company     Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name        String // "January 2026"
+  /// Fiscal year label, e.g. 2026.
+  year        Int
+  /// 1-based index of the period within its fiscal year.
+  periodNo    Int
+  startDate   DateTime     @db.Date
+  endDate     DateTime     @db.Date
+  status      PeriodStatus @default(OPEN)
+  closedAt    DateTime?
+  closedBy    String?      @db.Uuid
+  reopenedAt  DateTime?
+  reopenedBy  String?      @db.Uuid
+  createdAt   DateTime     @default(now())
 
   journalEntries JournalEntry[]
+  balances       AccountBalance[]
 
   @@unique([companyId, startDate, endDate])
+  @@unique([companyId, year, periodNo])
   @@index([companyId, status])
 }
 
@@ -181,6 +325,7 @@ enum JournalStatus {
 
 enum JournalSource {
   MANUAL
+  OPENING_BALANCE
   INVOICE
   BILL
   PAYMENT
@@ -194,31 +339,39 @@ enum JournalSource {
 model JournalEntry {
   id             String        @id @default(uuid()) @db.Uuid
   companyId      String        @db.Uuid
-  company        Company       @relation(fields: [companyId], references: [id])
+  company        Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
   fiscalPeriodId String        @db.Uuid
   fiscalPeriod   FiscalPeriod  @relation(fields: [fiscalPeriodId], references: [id])
-  reference      String // e.g. "JV-2026-000001"
+  reference      String // "JV-2026-000001"
   date           DateTime      @db.Date
   description    String?
+  memo           String?
   status         JournalStatus @default(DRAFT)
   source         JournalSource @default(MANUAL)
-  sourceId       String?       @db.Uuid // link back to originating document
+  sourceId       String?       @db.Uuid
 
   // reversal linkage
-  reversalOfId   String?       @unique @db.Uuid
-  reversalOf     JournalEntry? @relation("Reversal", fields: [reversalOfId], references: [id])
-  reversedBy     JournalEntry? @relation("Reversal")
+  reversalOfId String?       @unique @db.Uuid
+  reversalOf   JournalEntry? @relation("Reversal", fields: [reversalOfId], references: [id])
+  reversedBy   JournalEntry? @relation("Reversal")
 
-  postedAt       DateTime?
-  postedBy       String?       @db.Uuid
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  /// Denormalised control total; equals Σdebit = Σcredit on a balanced entry.
+  totalDebit  Decimal   @default(0) @db.Decimal(18, 2)
+  totalCredit Decimal   @default(0) @db.Decimal(18, 2)
+  /// Optimistic-lock counter — a stale write returns CONFLICT (docs/spec/09).
+  version     Int       @default(1)
+  createdBy   String?   @db.Uuid
+  postedAt    DateTime?
+  postedBy    String?   @db.Uuid
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  lines          JournalLine[]
+  lines JournalLine[]
 
   @@unique([companyId, reference])
   @@index([companyId, date])
   @@index([companyId, status])
+  @@index([companyId, fiscalPeriodId])
   @@index([source, sourceId])
 }
 
@@ -228,14 +381,32 @@ model JournalLine {
   journalEntry   JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
   accountId      String       @db.Uuid
   account        Account      @relation(fields: [accountId], references: [id])
-  // Amounts in the company base currency, minor-unit-safe via Decimal.
-  debit          Decimal      @default(0) @db.Decimal(18, 2)
-  credit         Decimal      @default(0) @db.Decimal(18, 2)
-  description    String?
-  lineNo         Int
+  /// Amounts in the company base currency, minor-unit-safe via Decimal.
+  debit       Decimal @default(0) @db.Decimal(18, 2)
+  credit      Decimal @default(0) @db.Decimal(18, 2)
+  description String?
+  lineNo      Int
 
   @@index([journalEntryId])
   @@index([accountId])
+}
+
+/// Pre-aggregated balances per account × period, maintained on post/reverse so
+/// reports never scan the full ledger (docs/spec/14 §57).
+model AccountBalance {
+  id             String       @id @default(uuid()) @db.Uuid
+  companyId      String       @db.Uuid
+  company        Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  accountId      String       @db.Uuid
+  account        Account      @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  fiscalPeriodId String       @db.Uuid
+  fiscalPeriod   FiscalPeriod @relation(fields: [fiscalPeriodId], references: [id], onDelete: Cascade)
+  debit          Decimal      @default(0) @db.Decimal(18, 2)
+  credit         Decimal      @default(0) @db.Decimal(18, 2)
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([accountId, fiscalPeriodId])
+  @@index([companyId, fiscalPeriodId])
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -245,14 +416,18 @@ model JournalLine {
 model AuditLog {
   id         String   @id @default(uuid()) @db.Uuid
   userId     String?  @db.Uuid
-  user       User?    @relation(fields: [userId], references: [id])
-  action     String // "journal.post", "period.close", ...
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  companyId  String?  @db.Uuid
+  action     String // "journal.post", "period.close", …
   entityType String
   entityId   String?
   metadata   Json?
   ipAddress  String?
+  userAgent  String?
   createdAt  DateTime @default(now())
 
   @@index([entityType, entityId])
+  @@index([companyId, createdAt])
+  @@index([userId, createdAt])
   @@index([createdAt])
 }

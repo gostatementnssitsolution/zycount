@@ -33,3 +33,6 @@ Thumbs.db
 
 # test / coverage
 coverage/
+
+# generated prisma client
+packages/db/generated/

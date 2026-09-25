@@ -2,16 +2,22 @@
   "compilerOptions": {
     "module": "commonjs",
     "target": "ES2022",
+    "lib": ["ES2022"],
     "moduleResolution": "node",
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "strict": true,
+    "strictPropertyInitialization": false,
     "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
     "skipLibCheck": true,
-    "declaration": true,
+    "declaration": false,
+    "sourceMap": true,
     "outDir": "dist",
-    "baseUrl": "."
+    "baseUrl": ".",
+    "types": ["node", "vitest/globals"]
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "test/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }
