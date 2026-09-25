@@ -43,8 +43,10 @@ jobs:
 
       - run: pnpm typecheck
       - run: pnpm lint
+      # Every package's unit suite, not just the shared one — the API's own
+      # tests were invisible to CI while this named a single filter.
       - name: Unit tests
-        run: pnpm --filter @zycount/shared test
+        run: pnpm test
 
   # The suite that decides whether the books can be trusted (docs/spec/12 §60).
   accounting-invariants:
