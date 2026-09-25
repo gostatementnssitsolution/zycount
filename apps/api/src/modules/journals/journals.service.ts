@@ -18,7 +18,7 @@ import type { AuthenticatedUser, ClientContext } from "../../common/guards/types
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { formatIsoDate, parseIsoDate } from "../../common/util/dates";
 import { paginate, skipTake } from "../../common/util/pagination";
-import { decimalToString, toDecimal } from "../../common/util/money";
+import { decimalToString } from "../../common/util/money";
 import { PeriodsService } from "../periods/periods.service";
 import { PostingService } from "./posting.service";
 

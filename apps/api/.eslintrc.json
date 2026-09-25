@@ -1,0 +1,21 @@
+{
+  "root": true,
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": { "ecmaVersion": 2022, "sourceType": "module" },
+  "plugins": ["@typescript-eslint"],
+  "extends": ["eslint:recommended", "plugin:@typescript-eslint/recommended", "prettier"],
+  "env": { "node": true, "es2022": true },
+  "ignorePatterns": [".eslintrc.json", "dist", "node_modules", "*.config.ts"],
+  "rules": {
+    // `consistent-type-imports` is deliberately off. Nest resolves constructor
+    // dependencies from `design:paramtypes`, which `emitDecoratorMetadata`
+    // only emits for value imports — rewriting an injected class to
+    // `import type` erases it and breaks dependency injection at runtime.
+    "@typescript-eslint/no-explicit-any": "error",
+    "@typescript-eslint/no-unused-vars": [
+      "error",
+      { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }
+    ],
+    "no-console": ["warn", { "allow": ["warn", "error"] }]
+  }
+}

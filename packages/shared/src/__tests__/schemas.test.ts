@@ -82,10 +82,14 @@ describe("journal schema", () => {
     expect(result.success).toBe(false);
     if (result.success) return;
 
-    const issue = result.error.issues.find(
-      (candidate) => (candidate as { params?: { zycountCode?: string } }).params?.zycountCode,
-    );
-    expect((issue as { params: { zycountCode: string } }).params.zycountCode).toBe("JOURNAL_UNBALANCED");
+    // The domain code rides along in `params` so the API can answer with
+    // JOURNAL_UNBALANCED rather than a generic validation failure.
+    const codes = result.error.issues
+      .map((candidate) => (candidate as unknown as { params?: { zycountCode?: string } }).params)
+      .map((params) => params?.zycountCode)
+      .filter((code): code is string => typeof code === "string");
+
+    expect(codes).toContain("JOURNAL_UNBALANCED");
   });
 
   it("rejects a single-line entry", () => {

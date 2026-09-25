@@ -12,5 +12,5 @@ function escapeCell(value: string): string {
 export function toCsv(headers: string[], rows: string[][], footers: string[][] = []): string {
   const lines = [headers, ...rows, ...footers].map((row) => row.map(escapeCell).join(","));
   // The BOM makes Excel open UTF-8 exports correctly on Windows.
-  return `﻿${lines.join("\r\n")}\r\n`;
+  return `\uFEFF${lines.join("\r\n")}\r\n`;
 }
