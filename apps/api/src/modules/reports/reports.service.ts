@@ -467,8 +467,10 @@ export class ReportsService {
       totalLiabilities,
       equity,
       retainedEarningsForPeriod,
+      previousRetainedEarningsForPeriod: fromCents(previousResultCents),
       totalEquity,
       totalLiabilitiesAndEquity,
+      previousTotalLiabilitiesAndEquity: addMoney(previousTotalLiabilities, previousTotalEquity),
       balanced: equation.holds,
       difference: equation.difference,
       ...(range.previous

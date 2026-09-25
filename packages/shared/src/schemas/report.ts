@@ -169,9 +169,11 @@ export interface BalanceSheetReport {
   equity: StatementSection;
   /** Profit for the period, closed into equity only at year end. */
   retainedEarningsForPeriod: string;
+  previousRetainedEarningsForPeriod?: string;
   totalEquity: string;
   previousTotalEquity?: string;
   totalLiabilitiesAndEquity: string;
+  previousTotalLiabilitiesAndEquity?: string;
   /** Invariant 2 — `Assets = Liabilities + Equity`. */
   balanced: boolean;
   difference: string;

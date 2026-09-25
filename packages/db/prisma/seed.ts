@@ -301,12 +301,24 @@ async function seedJournals(ctx: PostContext, profile: DemoProfile): Promise<num
   sequence += 1;
   await postSeedJournal(ctx, buildOpeningJournal(profile), 1, sequence);
 
+  // Arrears roll forward month to month, so receivables behave like a real
+  // ledger rather than compounding into an ever-growing balance.
+  let carried = 0;
+
   for (let month = 1; month <= TRANSACTING_MONTHS; month += 1) {
-    const journals = buildMonthJournals(profile, month - 1, daysInMonth(SEED_YEAR, month));
+    const { journals, carriedReceivables } = buildMonthJournals(
+      profile,
+      month - 1,
+      daysInMonth(SEED_YEAR, month),
+      carried,
+    );
+
     for (const journal of journals) {
       sequence += 1;
       await postSeedJournal(ctx, journal, month, sequence);
     }
+
+    carried = carriedReceivables;
   }
 
   // The number sequence continues where the seed left off, so the first journal

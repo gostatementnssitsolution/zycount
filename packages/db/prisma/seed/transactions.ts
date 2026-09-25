@@ -195,13 +195,36 @@ export function buildOpeningJournal(profile: DemoProfile): SeedJournal {
  * sales, customer receipts, supplier bills and payments, payroll, overheads,
  * depreciation and loan servicing.
  */
+export interface MonthResult {
+  journals: SeedJournal[];
+  /** Invoiced but uncollected at month end; collected early next month. */
+  carriedReceivables: number;
+}
+
 export function buildMonthJournals(
   profile: DemoProfile,
   monthIndex: number,
   daysInMonth: number,
-): SeedJournal[] {
+  /** Arrears brought forward from the previous month. */
+  carryIn = 0,
+): MonthResult {
   const random = createRandom(profile.seed + monthIndex * 977);
   const journals: SeedJournal[] = [];
+  let uncollected = 0;
+
+  // Last month's arrears are settled early this month, which is what keeps
+  // days-sales-outstanding at a realistic level instead of compounding.
+  if (carryIn > 0.005) {
+    journals.push({
+      day: 4,
+      description: "Customer receipts — prior month invoices",
+      source: "PAYMENT",
+      lines: [
+        { code: A.bank, debit: round2(carryIn), description: "Funds received" },
+        { code: A.accountsReceivable, credit: round2(carryIn), description: "Debtors settled" },
+      ],
+    });
+  }
 
   const { min, max, goodsShare } = profile.monthlySales;
   // A gentle upward trend plus month-to-month noise keeps the charts readable
@@ -254,8 +277,9 @@ export function buildMonthJournals(
       });
     }
 
-    // Most invoices are collected inside the month; the rest age into AR.
-    if (random() > 0.32) {
+    // Most invoices settle inside the month; the remainder ages into
+    // receivables and is collected at the start of the next month.
+    if (random() > 0.3) {
       const receiptDay = Math.min(daysInMonth, day + 5 + Math.floor(random() * 12));
       journals.push({
         day: receiptDay,
@@ -266,6 +290,8 @@ export function buildMonthJournals(
           { code: A.accountsReceivable, credit: total, description: "Debtor settled" },
         ],
       });
+    } else {
+      uncollected = round2(uncollected + total);
     }
   }
 
@@ -403,5 +429,8 @@ export function buildMonthJournals(
     });
   }
 
-  return journals.sort((a, b) => a.day - b.day);
+  return {
+    journals: journals.sort((a, b) => a.day - b.day),
+    carriedReceivables: uncollected,
+  };
 }
