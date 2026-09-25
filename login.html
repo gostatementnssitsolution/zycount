@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Sign in to Zycount — double-entry accounting for Malaysian businesses.">
+<title>Sign in · Zycount</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  color-scheme:light;
+  --paper:#F5F7FA; --card:#FFFFFF; --sunk:#EDF0F5; --rail:#111621; --rail-2:#19202E; --rail-line:#28313F;
+  --ink:#161C28; --ink-2:#4C586B; --ink-3:#77839A; --line:#E2E6EE;
+  --brand:#3A3FD0; --brand-2:#2F33B0; --brand-soft:#ECEDFB;
+  --good:#1E7A54; --good-soft:#E4F3EB; --bad:#B3213C; --bad-soft:#FBE9EC;
+  --r:10px;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    color-scheme:dark;
+    --paper:#0A0E17; --card:#111826; --sunk:#161E2E; --rail:#0C111B; --rail-2:#141B29; --rail-line:#222C3D;
+    --ink:#E9EEF7; --ink-2:#AAB6C9; --ink-3:#7C89A0; --line:#212A3B;
+    --brand:#7B80EE; --brand-2:#9A9EF3; --brand-soft:#1A1E3C;
+    --good:#49BC86; --good-soft:#10281E; --bad:#EB6A83; --bad-soft:#2C1319;
+  }
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--paper);color:var(--ink);font:14px/1.5 "IBM Plex Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--brand);text-decoration:none}
+a:hover{text-decoration:underline}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.wrap{min-height:100%;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr)}
+
+/* ── brand side ─────────────────────────────── */
+.side{background:var(--rail);color:#DDE3EE;padding:36px 48px;display:flex;flex-direction:column;gap:28px;position:relative;overflow:hidden}
+.side::before{content:"";position:absolute;inset:0;background:
+  repeating-linear-gradient(0deg,transparent 0 31px,rgba(255,255,255,.035) 31px 32px);pointer-events:none}
+.side>*{position:relative}
+.logo{display:inline-flex;align-items:center;gap:10px;color:#fff;font-weight:600;font-size:17px}
+.logo .mark{width:30px;height:30px;border-radius:8px;background:var(--brand);display:grid;place-items:center;color:#fff;font-weight:700}
+.side h2{font-size:30px;line-height:1.2;margin:auto 0 0;font-weight:600;letter-spacing:-.01em;max-width:460px;color:#fff}
+.side p.lead{margin:0;color:#AFBACB;max-width:440px;font-size:15px}
+.jv{background:var(--rail-2);border:1px solid var(--rail-line);border-radius:12px;max-width:470px;overflow:hidden}
+.jv-h{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--rail-line);font-size:12.5px;color:#AFBACB}
+.jv-h b{color:#fff;font-weight:600}
+.jv table{width:100%;border-collapse:collapse;font-size:12.5px}
+.jv td{padding:8px 16px;border-bottom:1px solid var(--rail-line)}
+.jv td.n{text-align:right;width:110px}
+.jv tr.t td{border-bottom:0;color:#fff;font-weight:600}
+.jv .code{color:#6F7C90;margin-right:8px}
+.ok{display:inline-flex;align-items:center;gap:6px;color:#49BC86;font-weight:600}
+.ok i{width:8px;height:8px;border-radius:50%;background:#49BC86;display:inline-block;box-shadow:0 0 0 3px rgba(73,188,134,.18)}
+.side .foot{margin-top:auto;color:#6F7C90;font-size:12px;display:flex;gap:18px;flex-wrap:wrap}
+
+/* ── form side ─────────────────────────────── */
+.main{display:flex;align-items:center;justify-content:center;padding:40px 24px}
+.panel{width:100%;max-width:410px}
+.top-link{display:flex;justify-content:space-between;align-items:center;margin-bottom:28px;font-size:13px;color:var(--ink-3)}
+.mobile-logo{display:none}
+h1{font-size:24px;margin:0 0 6px;font-weight:600;letter-spacing:-.01em}
+.sub{color:var(--ink-2);margin:0 0 22px}
+.tabs{display:grid;grid-template-columns:1fr 1fr;background:var(--sunk);border-radius:9px;padding:3px;margin-bottom:22px}
+.tabs button{border:0;background:transparent;padding:8px;border-radius:7px;font:inherit;font-weight:500;color:var(--ink-2);cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--card);color:var(--ink);box-shadow:0 1px 2px rgba(16,24,40,.08)}
+.field{margin-bottom:14px}
+.field label{display:flex;justify-content:space-between;font-size:12.5px;font-weight:500;color:var(--ink-2);margin-bottom:6px}
+.input{position:relative}
+.input input{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font:inherit;outline:none;transition:border-color .15s, box-shadow .15s}
+.input input:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+.input input[aria-invalid="true"]{border-color:var(--bad)}
+.input .eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);border:0;background:transparent;color:var(--ink-3);cursor:pointer;padding:6px;border-radius:6px}
+.input .eye:hover{color:var(--ink)}
+.row{display:flex;justify-content:space-between;align-items:center;margin:4px 0 18px;font-size:13px;color:var(--ink-2)}
+.row label{display:inline-flex;gap:8px;align-items:center;cursor:pointer}
+.btn{width:100%;border:0;border-radius:8px;padding:11px 14px;font:inherit;font-weight:600;cursor:pointer;background:var(--brand);color:#fff;display:inline-flex;justify-content:center;align-items:center;gap:8px}
+.btn:hover{background:var(--brand-2)}
+.btn[disabled]{opacity:.6;cursor:progress}
+.alert{border-radius:8px;padding:10px 12px;font-size:13px;margin-bottom:14px;display:none}
+.alert.show{display:block}
+.alert.err{background:var(--bad-soft);color:var(--bad)}
+.alert.ok{background:var(--good-soft);color:var(--good)}
+.hint{font-size:12px;color:var(--ink-3);margin-top:6px}
+.demo{margin-top:24px;border:1px solid var(--line);border-radius:10px;background:var(--card)}
+.demo-h{padding:10px 14px;border-bottom:1px solid var(--line);font-size:12.5px;color:var(--ink-2);display:flex;justify-content:space-between}
+.demo-h .mono{color:var(--ink)}
+.demo button{all:unset;box-sizing:border-box;display:grid;grid-template-columns:30px 1fr auto;align-items:center;gap:10px;width:100%;padding:9px 14px;cursor:pointer;border-bottom:1px solid var(--line);font-size:13px}
+.demo button:last-child{border-bottom:0}
+.demo button:hover,.demo button:focus-visible{background:var(--sunk)}
+.demo .av{width:30px;height:30px;border-radius:50%;background:var(--brand-soft);color:var(--brand);display:grid;place-items:center;font-size:11.5px;font-weight:600}
+.demo .who b{display:block;font-weight:500}
+.demo .who span{color:var(--ink-3);font-size:12px}
+.demo .role{font-size:11.5px;color:var(--ink-2);background:var(--sunk);border-radius:999px;padding:2px 8px}
+.note{margin-top:18px;font-size:12px;color:var(--ink-3);text-align:center}
+[hidden]{display:none!important}
+
+@media (max-width:900px){
+  .wrap{grid-template-columns:1fr}
+  .side{display:none}
+  .mobile-logo{display:inline-flex}
+  .main{padding:28px 16px 40px;align-items:flex-start}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <aside class="side" aria-hidden="true">
+    <a class="logo" href="index.html"><span class="mark">Z</span>Zycount</a>
+    <h2>Every entry balanced to the sen, before it ever reaches the ledger.</h2>
+    <p class="lead">Invoices, bills, payroll and bank lines post themselves as double entries — traceable from the balance sheet back to the source document.</p>
+
+    <div class="jv">
+      <div class="jv-h"><span><b>JV-2026-000206</b> · Sales invoice — customer A</span><span class="mono">27 Aug 2026</span></div>
+      <table>
+        <tr><td><span class="code mono">1150</span>Accounts Receivable</td><td class="n mono">26,435.60</td><td class="n mono"></td></tr>
+        <tr><td><span class="code mono">4110</span>Sales — Goods</td><td class="n mono"></td><td class="n mono">22,096.62</td></tr>
+        <tr><td><span class="code mono">4120</span>Sales — Services</td><td class="n mono"></td><td class="n mono">3,013.18</td></tr>
+        <tr><td><span class="code mono">2150</span>SST Output Tax</td><td class="n mono"></td><td class="n mono">1,325.80</td></tr>
+        <tr class="t"><td><span class="ok"><i></i>Balanced</span></td><td class="n mono">26,435.60</td><td class="n mono">26,435.60</td></tr>
+      </table>
+    </div>
+
+    <div class="foot"><span>MYR · SST · EPF · SOCSO · EIS · PCB</span><span>Period locking & full audit trail</span></div>
+  </aside>
+
+  <main class="main">
+    <div class="panel">
+      <div class="top-link">
+        <a class="logo mobile-logo" href="index.html" style="color:var(--ink)"><span class="mark">Z</span>Zycount</a>
+        <a href="index.html">← Back to zycount</a>
+      </div>
+
+      <!-- Sign in / create account -->
+      <section id="auth">
+        <h1 id="title">Sign in to your books</h1>
+        <p class="sub" id="subtitle">Welcome back. Use your work email, or pick a demo account below.</p>
+
+        <div class="tabs" role="tablist">
+          <button role="tab" id="tab-signin" aria-selected="true" aria-controls="form-signin">Sign in</button>
+          <button role="tab" id="tab-register" aria-selected="false" aria-controls="form-register">Create account</button>
+        </div>
+
+        <div class="alert err" id="err" role="alert"></div>
+        <div class="alert ok" id="okmsg" role="status"></div>
+
+        <form id="form-signin" novalidate>
+          <div class="field">
+            <label for="email">Work email</label>
+            <div class="input"><input id="email" name="email" type="email" autocomplete="username" placeholder="you@company.com.my" required></div>
+          </div>
+          <div class="field">
+            <label for="password"><span>Password</span><a href="#" id="forgot-link">Forgot password?</a></label>
+            <div class="input">
+              <input id="password" name="password" type="password" autocomplete="current-password" placeholder="••••••••" required>
+              <button type="button" class="eye" data-eye="password" aria-label="Show password">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="row">
+            <label><input type="checkbox" id="remember" checked> Keep me signed in</label>
+          </div>
+          <button class="btn" type="submit" id="signin-btn">Sign in</button>
+        </form>
+
+        <form id="form-register" novalidate hidden>
+          <div class="field">
+            <label for="r-company">Company name</label>
+            <div class="input"><input id="r-company" type="text" autocomplete="organization" placeholder="Syarikat Contoh Sdn Bhd" required></div>
+          </div>
+          <div class="field">
+            <label for="r-name">Your name</label>
+            <div class="input"><input id="r-name" type="text" autocomplete="name" placeholder="Ahmad Faiz" required></div>
+          </div>
+          <div class="field">
+            <label for="r-email">Work email</label>
+            <div class="input"><input id="r-email" type="email" autocomplete="email" placeholder="you@company.com.my" required></div>
+          </div>
+          <div class="field">
+            <label for="r-password">Password</label>
+            <div class="input">
+              <input id="r-password" type="password" autocomplete="new-password" placeholder="At least 8 characters" required>
+              <button type="button" class="eye" data-eye="r-password" aria-label="Show password">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+            <div class="hint">At least 8 characters, with a letter and a number.</div>
+          </div>
+          <button class="btn" type="submit" id="register-btn">Create account &amp; open workspace</button>
+        </form>
+
+        <div class="demo" id="demo">
+          <div class="demo-h"><span>Demo accounts</span><span>Password <span class="mono">Zycount!Demo2026</span></span></div>
+          <div id="demo-list"></div>
+        </div>
+      </section>
+
+      <!-- Forgot password -->
+      <section id="forgot" hidden>
+        <h1>Reset your password</h1>
+        <p class="sub">Enter the email you sign in with and we'll send a reset link.</p>
+        <div class="alert ok" id="forgot-ok" role="status"></div>
+        <form id="form-forgot" novalidate>
+          <div class="field">
+            <label for="f-email">Work email</label>
+            <div class="input"><input id="f-email" type="email" autocomplete="email" placeholder="you@company.com.my" required></div>
+          </div>
+          <button class="btn" type="submit">Send reset link</button>
+        </form>
+        <p class="note"><a href="#" id="back-signin">← Back to sign in</a></p>
+      </section>
+
+      <p class="note">Demo workspace — accounts you create are stored only in this browser.</p>
+    </div>
+  </main>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var KEY = "zycount.session";
+  var USERS_KEY = "zycount.users";
+  var DEMO_PASSWORD = "Zycount!Demo2026";
+  var DEMO = [
+    { name: "Aisyah Rahman", email: "admin@zycount.test", role: "SuperAdmin", desc: "Everything" },
+    { name: "Nurul Hidayah", email: "manager@zycount.test", role: "FinanceManager", desc: "Post, close periods" },
+    { name: "Lim Wei Jian", email: "accountant@zycount.test", role: "Accountant", desc: "Journals & COA" },
+    { name: "Ravi Chandran", email: "auditor@zycount.test", role: "Auditor", desc: "Read-only + audit" },
+    { name: "Tan Mei Ling", email: "viewer@zycount.test", role: "ReadOnly", desc: "Reports only" }
+  ];
+  var COMPANY = "Zycount Demo Trading Sdn Bhd";
+
+  var $ = function (id) { return document.getElementById(id); };
+  var params = new URLSearchParams(location.search);
+  var next = params.get("next") || "";
+
+  function readSession() {
+    try { return JSON.parse(localStorage.getItem(KEY) || sessionStorage.getItem(KEY) || "null"); } catch (e) { return null; }
+  }
+  function goApp() { location.replace("app.html" + (next && next.charAt(0) === "#" ? next : "")); }
+
+  // Already signed in → straight to the workspace (unless signing out).
+  if (params.get("signedout") !== "1" && readSession()) { goApp(); return; }
+
+  function initials(name) {
+    return name.split(/\s+/).filter(Boolean).slice(0, 2).map(function (p) { return p[0].toUpperCase(); }).join("");
+  }
+  function loadUsers() { try { return JSON.parse(localStorage.getItem(USERS_KEY) || "[]"); } catch (e) { return []; } }
+  function saveUsers(u) { localStorage.setItem(USERS_KEY, JSON.stringify(u)); }
+  async function sha256(text) {
+    if (window.crypto && crypto.subtle) {
+      var buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+      return Array.from(new Uint8Array(buf)).map(function (b) { return b.toString(16).padStart(2, "0"); }).join("");
+    }
+    return "plain:" + text; // very old browsers only
+  }
+  function startSession(user, remember) {
+    var s = JSON.stringify({ name: user.name, email: user.email, role: user.role, company: user.company || COMPANY, at: new Date().toISOString() });
+    localStorage.removeItem(KEY); sessionStorage.removeItem(KEY);
+    (remember ? localStorage : sessionStorage).setItem(KEY, s);
+  }
+
+  var err = $("err"), okmsg = $("okmsg");
+  function showErr(msg, fieldIds) {
+    okmsg.classList.remove("show");
+    err.textContent = msg; err.classList.add("show");
+    document.querySelectorAll("[aria-invalid]").forEach(function (el) { el.removeAttribute("aria-invalid"); });
+    (fieldIds || []).forEach(function (id) { $(id).setAttribute("aria-invalid", "true"); });
+    if (fieldIds && fieldIds[0]) $(fieldIds[0]).focus();
+  }
+  function clearMsgs() {
+    err.classList.remove("show"); okmsg.classList.remove("show");
+    document.querySelectorAll("[aria-invalid]").forEach(function (el) { el.removeAttribute("aria-invalid"); });
+  }
+  var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+  // ── tabs ─────────────────────────────────────
+  function showTab(which) {
+    var reg = which === "register";
+    $("tab-signin").setAttribute("aria-selected", String(!reg));
+    $("tab-register").setAttribute("aria-selected", String(reg));
+    $("form-signin").hidden = reg;
+    $("form-register").hidden = !reg;
+    $("demo").hidden = reg;
+    $("title").textContent = reg ? "Create your Zycount account" : "Sign in to your books";
+    $("subtitle").textContent = reg
+      ? "Set up your company in a minute. A Malaysian chart of accounts, SST codes and fiscal periods come ready."
+      : "Welcome back. Use your work email, or pick a demo account below.";
+    clearMsgs();
+    history.replaceState(null, "", location.pathname + location.search + (reg ? "#register" : ""));
+    (reg ? $("r-company") : $("email")).focus();
+  }
+  $("tab-signin").onclick = function () { showTab("signin"); };
+  $("tab-register").onclick = function () { showTab("register"); };
+
+  // ── show / hide password ─────────────────────
+  document.querySelectorAll("[data-eye]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var input = $(b.getAttribute("data-eye"));
+      var show = input.type === "password";
+      input.type = show ? "text" : "password";
+      b.setAttribute("aria-label", show ? "Hide password" : "Show password");
+    });
+  });
+
+  // ── demo accounts ────────────────────────────
+  var list = $("demo-list");
+  DEMO.forEach(function (u) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.innerHTML = '<span class="av"></span><span class="who"><b></b><span></span></span><span class="role"></span>';
+    b.querySelector(".av").textContent = initials(u.name);
+    b.querySelector("b").textContent = u.name;
+    b.querySelector(".who span").textContent = u.email + " · " + u.desc;
+    b.querySelector(".role").textContent = u.role;
+    b.addEventListener("click", function () {
+      $("email").value = u.email;
+      $("password").value = DEMO_PASSWORD;
+      clearMsgs();
+      $("signin-btn").focus();
+    });
+    list.appendChild(b);
+  });
+
+  // ── sign in ──────────────────────────────────
+  $("form-signin").addEventListener("submit", async function (e) {
+    e.preventDefault();
+    clearMsgs();
+    var email = $("email").value.trim().toLowerCase();
+    var pw = $("password").value;
+    if (!EMAIL_RE.test(email)) return showErr("Enter a valid email address.", ["email"]);
+    if (!pw) return showErr("Enter your password.", ["password"]);
+
+    var btn = $("signin-btn"); btn.disabled = true; btn.textContent = "Signing in…";
+    var demo = DEMO.find(function (u) { return u.email === email; });
+    var user = null;
+    if (demo) {
+      if (pw === DEMO_PASSWORD) user = demo;
+    } else {
+      var found = loadUsers().find(function (u) { return u.email === email; });
+      if (found && found.hash === await sha256(pw)) user = found;
+    }
+    setTimeout(function () {
+      if (!user) {
+        btn.disabled = false; btn.textContent = "Sign in";
+        return showErr("That email and password don't match an account.", ["password"]);
+      }
+      startSession(user, $("remember").checked);
+      goApp();
+    }, 350);
+  });
+
+  // ── create account ───────────────────────────
+  $("form-register").addEventListener("submit", async function (e) {
+    e.preventDefault();
+    clearMsgs();
+    var company = $("r-company").value.trim();
+    var name = $("r-name").value.trim();
+    var email = $("r-email").value.trim().toLowerCase();
+    var pw = $("r-password").value;
+    if (company.length < 2) return showErr("Enter your company name.", ["r-company"]);
+    if (name.length < 2) return showErr("Enter your name.", ["r-name"]);
+    if (!EMAIL_RE.test(email)) return showErr("Enter a valid email address.", ["r-email"]);
+    if (pw.length < 8 || !/[A-Za-z]/.test(pw) || !/\d/.test(pw))
+      return showErr("Use at least 8 characters, including a letter and a number.", ["r-password"]);
+    var users = loadUsers();
+    if (DEMO.some(function (u) { return u.email === email; }) || users.some(function (u) { return u.email === email; }))
+      return showErr("An account with that email already exists. Sign in instead.", ["r-email"]);
+
+    var user = { name: name, email: email, role: "Owner", company: company, hash: await sha256(pw), createdAt: new Date().toISOString() };
+    users.push(user);
+    saveUsers(users);
+    startSession(user, true);
+    goApp();
+  });
+
+  // ── forgot password ──────────────────────────
+  $("forgot-link").addEventListener("click", function (e) {
+    e.preventDefault();
+    $("auth").hidden = true; $("forgot").hidden = false;
+    $("f-email").value = $("email").value;
+    $("f-email").focus();
+  });
+  $("back-signin").addEventListener("click", function (e) {
+    e.preventDefault();
+    $("forgot").hidden = true; $("auth").hidden = false; $("forgot-ok").classList.remove("show");
+  });
+  $("form-forgot").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var email = $("f-email").value.trim();
+    var box = $("forgot-ok");
+    if (!EMAIL_RE.test(email)) {
+      box.className = "alert err show"; box.textContent = "Enter a valid email address."; return;
+    }
+    box.className = "alert ok show";
+    box.textContent = "If " + email + " has an account, a reset link is on its way. (Demo: demo accounts use Zycount!Demo2026.)";
+  });
+
+  if (params.get("signedout") === "1") { okmsg.textContent = "You've been signed out."; okmsg.classList.add("show"); }
+  if (location.hash === "#register") showTab("register");
+})();
+</script>
+</body>
+</html>
