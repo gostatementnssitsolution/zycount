@@ -36,3 +36,6 @@ coverage/
 
 # generated prisma client
 packages/db/generated/
+
+# typescript incremental build info
+*.tsbuildinfo
