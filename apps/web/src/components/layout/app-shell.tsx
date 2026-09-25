@@ -100,36 +100,28 @@ function MobileNav({ open, onOpenChange }: { open: boolean; onOpenChange: (open:
                     const Icon = item.icon;
                     const active =
                       item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
-                    const locked = Boolean(item.phase);
-
-                    const content = (
-                      <span
-                        className={cn(
-                          "flex items-center gap-2.5 rounded-md px-2 py-2 text-sm",
-                          locked
-                            ? "cursor-not-allowed text-sidebar-muted/60"
-                            : active
-                              ? "bg-sidebar-accent font-medium"
-                              : "text-sidebar-muted",
-                        )}
-                      >
-                        <Icon className="size-4 shrink-0" aria-hidden />
-                        <span className="truncate">{item.label}</span>
-                        {locked && (
-                          <span className="ml-auto shrink-0 text-2xs">
-                            {PHASE_LABELS[item.phase!]}
-                          </span>
-                        )}
-                      </span>
-                    );
 
                     return (
                       <li key={item.href}>
-                        {locked ? (
-                          <div aria-disabled="true">{content}</div>
-                        ) : (
-                          <Link href={item.href}>{content}</Link>
-                        )}
+                        <Link
+                          href={item.href}
+                          aria-current={active ? "page" : undefined}
+                          className={cn(
+                            "flex items-center gap-2.5 rounded-md px-2 py-2 text-sm",
+                            active ? "bg-sidebar-accent font-medium" : "text-sidebar-muted",
+                          )}
+                        >
+                          <Icon className="size-4 shrink-0" aria-hidden />
+                          <span className="truncate">{item.label}</span>
+                          {item.previewPhase && (
+                            <span
+                              className="ml-auto shrink-0 rounded border border-sidebar-border px-1 text-[10px] font-medium uppercase tracking-wide"
+                              title={`Design preview — wired to the API in ${PHASE_LABELS[item.previewPhase]}`}
+                            >
+                              Preview
+                            </span>
+                          )}
+                        </Link>
                       </li>
                     );
                   })}

@@ -1,7 +1,7 @@
 "use client";
 
 import { PERMISSIONS } from "@zycount/shared";
-import { ArrowRight, BookOpen, TrendingUp } from "lucide-react";
+import { ArrowRight, BookOpen, Landmark, Receipt, ScanLine, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import * as React from "react";
 import { ErrorState } from "@/components/common/error-state";
@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { BusinessHealth } from "@/components/dashboard/business-health";
 import { CashChart, ExpenseMixChart, TrendChart } from "@/components/dashboard/charts";
 import { KpiGrid } from "@/components/dashboard/kpi-tile";
+import { QuickActions, WorkspaceTasks } from "@/components/dashboard/workspace";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,6 +29,14 @@ import {
 import { useDashboard } from "@/hooks/use-accounting";
 import { formatDate } from "@/lib/format";
 import { useAuth } from "@/providers/auth-provider";
+
+/** Where the day usually starts, whichever module the work belongs to. */
+const QUICK_ACTIONS = [
+  { label: "Raise an invoice", href: "/sales/invoices", icon: Receipt, hint: "Bill a customer" },
+  { label: "Capture a receipt", href: "/purchases/expenses", icon: ScanLine, hint: "Photograph and code it" },
+  { label: "Reconcile the bank", href: "/banking/reconciliation", icon: Landmark, hint: "5 lines waiting" },
+  { label: "Post a journal", href: "/accounting/journals/new", icon: BookOpen, hint: "Straight to the ledger" },
+];
 
 export default function DashboardPage() {
   return (
@@ -79,12 +88,17 @@ function Dashboard() {
             comparisonLabel={data.trend.length > 1 ? "vs. previous period" : undefined}
           />
 
+          <QuickActions actions={QUICK_ACTIONS} />
+
           <div className="grid gap-4 lg:grid-cols-3">
             <TrendChart data={data.trend} currency={data.meta.currency} className="lg:col-span-2" />
-            <ExpenseMixChart data={data.accountMix} currency={data.meta.currency} />
+            <WorkspaceTasks />
           </div>
 
-          <CashChart data={data.trend} currency={data.meta.currency} />
+          <div className="grid gap-4 lg:grid-cols-3">
+            <CashChart data={data.trend} currency={data.meta.currency} className="lg:col-span-2" />
+            <ExpenseMixChart data={data.accountMix} currency={data.meta.currency} />
+          </div>
 
           <BusinessHealth metrics={data.health} />
 
