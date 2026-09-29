@@ -146,6 +146,10 @@
         `${M(p.assets)} = ${M(p.liabilities)} + ${M(eqPlusResult)}`],
       [p.numbering_gaps === 0, "Journal numbers run without gaps", p.numbering_gaps === 0 ? "Nothing posted has been removed" : `${p.numbering_gaps} number(s) missing`],
       [p.lines_on_headings === 0, "Nothing posted to a heading", "Every line sits on a real account"],
+      ...(P || !p.control_accounts || !p.control_accounts.length ? [] : [[ZL.cents(p.subledger_difference) === 0 && !p.allocation_errors,
+        "Customer and supplier balances tie to the ledger",
+        ZL.cents(p.subledger_difference) === 0 ? p.control_accounts.map((x) => `${x.name} ${M(x.ledger)}`).join(" · ")
+          : `${M(p.subledger_difference)} on ${p.control_accounts.filter((x) => ZL.cents(x.difference)).map((x) => x.name).join(", ")} isn't backed by invoices or bills`]]),
       [true, "Audit trail is append-only", `${p.audit_events} event${p.audit_events === 1 ? "" : "s"} recorded; none can be edited or deleted`],
     ];
     const ok = rows.every((r) => r[0]);
@@ -586,7 +590,7 @@
     const d = ZL.cents(l.debit), c = ZL.cents(l.credit);
     return `<tr data-line>
       <td class="num">${n}</td>
-      <td style="min-width:240px"><select class="zl-input" data-f="account" aria-label="Account, line ${n}">${accountOptions(accounts, l.account_id)}</select></td>
+      <td style="min-width:240px"><select class="zl-input" data-f="account" aria-label="Account, line ${n}">${accountOptions(accounts.filter((a) => !a.is_control || a.id === l.account_id), l.account_id)}</select></td>
       <td style="min-width:180px"><input class="zl-input" data-f="description" value="${E(l.description || "")}" placeholder="Line narrative (optional)" aria-label="Narrative, line ${n}" maxlength="500"></td>
       <td style="width:150px"><input class="zl-input num" data-f="debit" inputmode="decimal" value="${d ? M(d / 100) : ""}" placeholder="0.00" aria-label="Debit, line ${n}"></td>
       <td style="width:150px"><input class="zl-input num" data-f="credit" inputmode="decimal" value="${c ? M(c / 100) : ""}" placeholder="0.00" aria-label="Credit, line ${n}"></td>

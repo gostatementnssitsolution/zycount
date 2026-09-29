@@ -15,7 +15,13 @@
   const KIND_OF = { IN: "RECEIPT", OUT: "PAYMENT", JOURNAL: "JOURNAL" };
   const KIND_LABEL = () => ({
     PAYMENT: ZL.T("Payment vouchers", "Money out"), RECEIPT: ZL.T("Official receipts", "Money in"), JOURNAL: "Journals",
+    QUOTATION: "Quotations", INVOICE: "Sales invoices", CASH_SALE: "Cash sales", DEBIT_NOTE: "Debit notes", CREDIT_NOTE: "Credit notes",
+    PURCHASE_ORDER: "Purchase orders", BILL: "Purchase invoices", CASH_PURCHASE: "Cash purchases", SUPPLIER_DN: "Supplier debit notes", SUPPLIER_CN: "Supplier credit notes",
   });
+  const SALES_KINDS = ["QUOTATION", "INVOICE", "CASH_SALE", "DEBIT_NOTE", "CREDIT_NOTE"];
+  const PURCHASE_KINDS = ["PURCHASE_ORDER", "BILL", "CASH_PURCHASE", "SUPPLIER_DN", "SUPPLIER_CN"];
+  const kindsFor = () => ["PAYMENT", "RECEIPT", "JOURNAL"].concat(ZL.isPersonal() ? [] : SALES_KINDS.concat(PURCHASE_KINDS));
+  const moneyKind = (k) => k === "PAYMENT" || k === "RECEIPT";
   const MODE_LABEL = { AUTO: "Automatic", AUTO_EDITABLE: "Automatic, can be changed", MANUAL: "Keyed by hand" };
   const RESET_LABEL = { YEARLY: "Every year", MONTHLY: "Every month", NEVER: "Never" };
   const isMoney = (a) => a.is_postable && a.is_active && (a.is_cash || (ZL.isPersonal() && a.type === "LIABILITY" && a.sub_type === "CURRENT_LIABILITY"));
@@ -115,10 +121,10 @@
     const radio = (m, desc) => `<label class="zl-check"><input type="radio" name="mode" value="${m}"${r.mode === m ? " checked" : ""}>
       <span>${MODE_LABEL[m]}<small>${desc}</small></span></label>`;
     const body = `<div class="zl-form" id="zl-sform">
-        ${isNew ? `<label class="zl-field half"><span>Numbers</span><select class="zl-input" name="kind">${["PAYMENT", "RECEIPT", "JOURNAL"].map(kindSel).join("")}</select></label>
+        ${isNew ? `<label class="zl-field half"><span>Numbers</span><select class="zl-input" name="kind">${kindsFor().map(kindSel).join("")}</select></label>
           <label class="zl-field half"><span>Code <i>*</i></span><input class="zl-input" name="code" maxlength="10" placeholder="e.g. CV" value="${E(r.code)}" autocomplete="off"></label>` : ""}
         <label class="zl-field half"><span>Name <i>*</i></span><input class="zl-input" name="name" maxlength="60" value="${E(r.name)}" placeholder="e.g. Cash voucher"></label>
-        <label class="zl-field half" data-money-only><span>Printed title</span><input class="zl-input" name="title" maxlength="60" value="${E(r.title || "")}" placeholder="Uses the template title"></label>
+        <label class="zl-field half" data-money-only="title"><span>Printed title</span><input class="zl-input" name="title" maxlength="60" value="${E(r.title || "")}" placeholder="Uses the template title"></label>
         <label class="zl-field"><span>Format <i>*</i></span><input class="zl-input mono" name="format" maxlength="40" value="${E(r.format)}" placeholder="e.g. CV/{YY}/{####}" autocomplete="off">
           <span class="zl-tokens">${["{YYYY}", "{YY}", "{MM}", "{####}", "{######}", "-", "/"].map((t) => `<button type="button" class="zl-btn sm ghost" data-token="${t}">${t}</button>`).join("")}</span>
           <small>{YYYY} year · {YY} short year · {MM} month · {####} running number (3 to 10 #)</small></label>
@@ -154,7 +160,7 @@
         p_company: cid(), p_id: isNew ? null : r.id, p_kind: kindNow(), p_code: isNew ? val("code").toUpperCase() : r.code,
         p_name: val("name"), p_title: kindNow() === "JOURNAL" ? null : val("title") || null, p_format: val("format"),
         p_reset: m.root.querySelector('[name="reset"]').value, p_mode: modeNow(),
-        p_money_account: kindNow() === "JOURNAL" ? null : val("money") || null,
+        p_money_account: moneyKind(kindNow()) ? val("money") || null : null,
         p_is_default: m.root.querySelector('[name="default"]').checked, p_is_active: m.root.querySelector('[name="active"]').checked,
         p_next_number: isNew || next !== Number(r.next_number) ? next : null,
       });
@@ -165,8 +171,8 @@
     m = ZL.modal({ title: isNew ? "Add a numbering series" : `${r.name} (${r.code})`, wide: true, body, actions });
     const draw = () => {
       const k = kindNow();
-      m.root.querySelectorAll("[data-money-only]").forEach((el) => { el.hidden = k === "JOURNAL"; });
-      m.root.querySelector("[data-kind-word]").textContent = { PAYMENT: P ? "money out" : "payments", RECEIPT: P ? "money in" : "receipts", JOURNAL: "journals" }[k];
+      m.root.querySelectorAll("[data-money-only]").forEach((el) => { el.hidden = !moneyKind(k) && !(el.dataset.moneyOnly === "title" && k !== "JOURNAL"); });
+      m.root.querySelector("[data-kind-word]").textContent = { PAYMENT: P ? "money out" : "payments", RECEIPT: P ? "money in" : "receipts", JOURNAL: "journals" }[k] || KIND_LABEL()[k].toLowerCase();
       const fmt = val("format"), n = Math.max(1, Number(val("next")) || 1);
       const ok = /\{#{3,10}\}/.test(fmt);
       const note = k === "JOURNAL" && modeNow() !== "AUTO"
@@ -201,25 +207,26 @@
       const [rows, accounts] = await Promise.all([ZL.numbering.load(ZL.today()), ZL.accounts()]);
       const acc = new Map(accounts.map((a) => [a.id, a]));
       const edit = ZL.can("company.edit");
-      const section = (kind) => {
-        const list = rows.filter((r) => r.kind === kind);
+      const section = (kind, title, kinds) => {
+        const list = rows.filter((r) => (kinds || [kind]).includes(r.kind));
         return `<section class="card" style="margin-bottom:16px">
-          <div class="zl-sec-h"><h3>${E(KIND_LABEL()[kind])}</h3>${edit ? `<button type="button" class="zl-btn sm ghost" data-snew="${kind}">+ Add series</button>` : ""}</div>
+          <div class="zl-sec-h"><h3>${E(title || KIND_LABEL()[kind])}</h3>${edit ? `<button type="button" class="zl-btn sm ghost" data-snew="${kind}">+ Add series</button>` : ""}</div>
           <div class="tablewrap"><table>
-          <thead><tr><th>Series</th><th>Next number</th><th>Restarts</th><th>Numbering</th>${kind === "JOURNAL" ? "" : "<th>Used for</th>"}<th class="r">Used</th><th></th></tr></thead>
+          <thead><tr><th>Series</th><th>Next number</th><th>Restarts</th><th>Numbering</th>${moneyKind(kind) ? "<th>Used for</th>" : ""}<th class="r">Used</th><th></th></tr></thead>
           <tbody>${list.map((r) => { const a = acc.get(r.money_account_id); return `<tr${r.is_active ? "" : ' style="opacity:.6"'}>
-            <td><div style="font-weight:500">${E(r.name)} <span class="code">${E(r.code)}</span>${r.is_default ? ' <span class="chip ok">Default</span>' : ""}${r.is_active ? "" : ' <span class="chip">Inactive</span>'}</div>
+            <td><div style="font-weight:500">${E(r.name)} <span class="code">${E(r.code)}</span>${kinds ? ` <span class="hint">${E(KIND_LABEL()[r.kind])}</span>` : ""}${r.is_default ? ' <span class="chip ok">Default</span>' : ""}${r.is_active ? "" : ' <span class="chip">Inactive</span>'}</div>
               <div class="hint mono">${E(r.format)}</div></td>
             <td class="mono" style="white-space:nowrap">${r.mode === "MANUAL" ? '<span class="nil">—</span>' : E(r.next_preview)}</td>
             <td class="nil">${RESET_LABEL[r.reset]}</td>
             <td>${MODE_LABEL[r.mode]}</td>
-            ${kind === "JOURNAL" ? "" : `<td class="nil">${a ? `${E(a.name)} <span class="code">${E(a.code)}</span>` : "Any account"}</td>`}
+            ${moneyKind(kind) ? `<td class="nil">${a ? `${E(a.name)} <span class="code">${E(a.code)}</span>` : "Any account"}</td>` : ""}
             <td class="r num">${r.used}</td>
             <td class="r">${edit ? `<button type="button" class="zl-btn sm" data-sedit="${r.id}">Edit</button>` : ""}</td></tr>`; }).join("")
             || `<tr><td colspan="7" class="nil">No series — these entries get no number.</td></tr>`}</tbody></table></div></section>`;
       };
-      return ZL.header("Numbering", "Choose how vouchers, receipts and journals are numbered — automatically or keyed by hand.") +
-        section("PAYMENT") + section("RECEIPT") + section("JOURNAL") +
+      return ZL.header("Numbering", ZL.T("Choose how invoices, notes, vouchers, receipts and journals are numbered — automatically or keyed by hand.", "Choose how vouchers, receipts and journals are numbered — automatically or keyed by hand.")) +
+        section("PAYMENT") + section("RECEIPT") +
+        (ZL.isPersonal() ? "" : section("INVOICE", "Sales documents", SALES_KINDS) + section("BILL", "Purchase documents", PURCHASE_KINDS)) + section("JOURNAL") +
         `<p class="hint">Automatic numbers never skip or repeat, and every number is checked for duplicates. Account codes are changed in <button type="button" class="zl-ref" id="zl-to-coa">${ZL.T("Chart of accounts", "Accounts & categories")}</button>.</p>`;
     },
     after(root) {
