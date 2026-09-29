@@ -23,7 +23,8 @@
   html .zl-post td,html.zl-live .zl-post td{padding:8px 12px}
   .zl-post .zl-amtcol{width:110px}
   @media (max-width:640px){.zl-post .zl-amtcol{width:78px}html .zl-post td,html.zl-live .zl-post td{padding:8px 8px}}
-  .zl-kinds{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+  .zl-kinds{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+  @media (max-width:1100px){.zl-kinds{grid-template-columns:repeat(2,minmax(0,1fr))}}
   .zl-kind{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:12px;padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:var(--card);cursor:pointer}
   .zl-kind:hover,.zl-kind:focus-visible{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
   .zl-kind i{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;flex:none}
@@ -32,6 +33,7 @@
   .zl-kind.in i{background:var(--good-soft);color:var(--good)}
   .zl-kind.out i{background:var(--bad-soft);color:var(--bad)}
   .zl-kind.tr i{background:var(--brand-soft);color:var(--brand)}
+  .zl-kind.imp i{background:var(--sunk);color:var(--ink-2)}
   .zl-sumrow{display:flex;gap:28px;flex-wrap:wrap;font-size:13px;color:var(--ink-3)}
   .zl-sumrow b{display:block;font-size:17px;color:var(--ink);font-weight:600;margin-top:2px}
   .zl-amt-in{color:var(--good);font-weight:600}
@@ -50,6 +52,7 @@
   style.textContent = CSS;
   document.head.appendChild(style);
 
+  const IMP_ICON = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>`;
   const IN_ICON = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 7 7 17M7 8v9h9"/></svg>`;
   const OUT_ICON = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M8 7h9v9"/></svg>`;
   const TR_ICON = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h13l-4-4M17 17H4l4 4"/></svg>`;
@@ -350,6 +353,7 @@
           <button type="button" class="zl-kind in" data-quick="IN"><i>${IN_ICON}</i><span><b>Money in</b><span>${P ? "Salary, refunds, gifts" : "Customer payments, other income"}</span></span></button>
           <button type="button" class="zl-kind out" data-quick="OUT"><i>${OUT_ICON}</i><span><b>Money out</b><span>${P ? "Spending and bills" : "Bills, expenses, purchases"}</span></span></button>
           <button type="button" class="zl-kind tr" data-quick="TRANSFER"><i>${TR_ICON}</i><span><b>Transfer</b><span>${P ? "Between your own accounts" : "Between bank and cash accounts"}</span></span></button>
+          <button type="button" class="zl-kind imp" data-import><i>${IMP_ICON}</i><span><b>Import statement</b><span>${P ? "Any bank or card — PDF, CSV or Excel" : "Bank PDF, CSV or Excel"}</span></span></button>
         </div>` : "";
       return ZL.header(P ? "Money in & out" : "Transactions", "Each one is posted as a balanced journal the moment you save it.",
           canRecord ? `<button type="button" class="zl-btn${opening ? " ghost" : ""}" id="zl-ob">${opening ? `${TICK} Opening balances posted` : "Enter opening balances"}</button>` : "") +
@@ -385,6 +389,7 @@
     after(root, ctx) {
       const p = ctx.params;
       root.querySelectorAll("[data-quick]").forEach((b) => b.addEventListener("click", () => ZL.quick(b.dataset.quick)));
+      root.querySelectorAll("[data-import]").forEach((b) => b.addEventListener("click", () => ZL.uploadStatement()));
       const ob = root.querySelector("#zl-ob");
       if (ob) ob.addEventListener("click", () => ZL.openingBalances());
       root.querySelectorAll("[data-tkind]").forEach((b) => b.addEventListener("click", () => ZL.open("transactions", Object.assign({}, p, { kind: b.dataset.tkind, focus: null }))));

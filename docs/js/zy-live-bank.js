@@ -65,7 +65,6 @@
     let wb;
     if (/\.(csv|txt)$/.test(name)) wb = XLSX.read(await file.text(), { type: "string", raw: true });
     else if (/\.(xlsx|xls)$/.test(name)) wb = XLSX.read(new Uint8Array(await file.arrayBuffer()), { type: "array" });
-    else if (/\.pdf$/.test(name)) throw new ZL.ZLError("VALIDATION", "PDF statements can't be read yet. In your online banking, download the statement as CSV or Excel instead.");
     else throw new ZL.ZLError("VALIDATION", "Use a CSV or Excel (.xlsx, .xls) file from your bank.");
     const ws = wb.Sheets[wb.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: "", blankrows: false })
@@ -119,18 +118,27 @@
   }
 
   // ── Upload dialog ─────────────────────────────────────────────────────────
-  async function upload() {
+  /** Upload a statement (CSV, Excel or PDF). opts.account preselects the bank/card account. */
+  async function upload(opts = {}) {
     const accounts = (await ZL.accounts()).filter(isMoney);
     if (!accounts.length) { ZL.toast("Create a bank account in the chart of accounts first.", "bad"); return; }
+    const P = ZL.isPersonal();
     let last = null;
     try { last = localStorage.getItem(`zl.money.${cid()}`); } catch (_) { /* ignore */ }
-    const pick = (accounts.find((a) => a.id === last) || accounts.find((a) => a.code === (ZL.isPersonal() ? "1120" : "1131")) || accounts[0]).id;
-    let rows = null, map = null, parsed = null, fileName = "";
+    const pick = (accounts.find((a) => a.id === opts.account) || accounts.find((a) => a.id === last)
+      || accounts.find((a) => a.code === (P ? "1120" : "1131")) || accounts[0]).id;
+    let rows = null, map = null, parsed = null, pdf = null, file = null, password = "", fileName = "";
     const colSel = (name, val, optional) => `<select class="zl-input" data-map="${name}">${optional ? `<option value="-1">— none —</option>` : ""}${map.head.map((h, i) =>
       `<option value="${i}"${i === val ? " selected" : ""}>${E(h || `Column ${i + 1}`)}</option>`).join("")}</select>`;
+    const preview = (lines) => {
+      const inn = lines.filter((l) => l.amount > 0), out = lines.filter((l) => l.amount < 0);
+      return { inn: ZL.sum(inn, (l) => l.amount), out: -ZL.sum(out, (l) => l.amount), table: `<div class="tablewrap" style="max-height:260px;overflow:auto"><table><thead><tr><th>Date</th><th>Description</th><th class="r">In</th><th class="r">Out</th><th class="r">Balance</th></tr></thead>
+          <tbody>${lines.slice(0, 60).map((l) => `<tr><td class="nil" style="white-space:nowrap">${ZL.date(l.date)}</td><td>${E(l.description)}${l.reference ? `<div class="hint">${E(l.reference)}</div>` : ""}${l.uncertain ? ' <span class="chip warn" title="Direction guessed">?</span>' : ""}</td>
+            <td class="r num">${l.amount > 0 ? M(l.amount) : ""}</td><td class="r num">${l.amount < 0 ? M(-l.amount) : ""}</td><td class="r num nil">${l.balance == null ? "" : M(l.balance)}</td></tr>`).join("")}</tbody></table></div>
+        ${lines.length > 60 ? `<p class="hint">First 60 of ${lines.length} shown.</p>` : ""}` };
+    };
     const mappingHtml = () => {
-      const t = parsed;
-      const inn = t.lines.filter((l) => l.amount > 0), out = t.lines.filter((l) => l.amount < 0);
+      const t = parsed, pv = preview(t.lines);
       return `<div class="zl-form" style="margin-top:14px">
           <label class="zl-field half"><span>Date column</span>${colSel("date", map.date)}</label>
           <label class="zl-field half"><span>Date format</span><select class="zl-input" data-map="order">
@@ -147,43 +155,90 @@
             : `<label class="zl-field half"><span>Amount column</span>${colSel("amount", map.amount)}</label>`}
           <label class="zl-field half"><span>Balance column</span>${colSel("balance", map.balance, true)}</label>
         </div>
-        <div class="zl-banner info" style="margin:6px 0 10px">${t.lines.length} line${t.lines.length === 1 ? "" : "s"} read · in <b class="num">${M(ZL.sum(inn, (l) => l.amount))}</b> · out <b class="num">${M(-ZL.sum(out, (l) => l.amount))}</b>${t.skipped ? ` · ${t.skipped} row${t.skipped === 1 ? "" : "s"} without a date or amount skipped (headers, totals)` : ""}${t.bad ? ` · <b>${t.bad} amount${t.bad === 1 ? "" : "s"} unreadable</b>` : ""}</div>
-        <div class="tablewrap" style="max-height:260px;overflow:auto"><table><thead><tr><th>Date</th><th>Description</th><th class="r">In</th><th class="r">Out</th><th class="r">Balance</th></tr></thead>
-          <tbody>${t.lines.slice(0, 50).map((l) => `<tr><td class="nil" style="white-space:nowrap">${ZL.date(l.date)}</td><td>${E(l.description)}${l.reference ? `<div class="hint">${E(l.reference)}</div>` : ""}</td>
-            <td class="r num">${l.amount > 0 ? M(l.amount) : ""}</td><td class="r num">${l.amount < 0 ? M(-l.amount) : ""}</td><td class="r num nil">${l.balance == null ? "" : M(l.balance)}</td></tr>`).join("")}</tbody></table></div>
-        ${t.lines.length > 50 ? `<p class="hint">First 50 of ${t.lines.length} shown.</p>` : ""}`;
+        <div class="zl-banner info" style="margin:6px 0 10px">${t.lines.length} line${t.lines.length === 1 ? "" : "s"} read · in <b class="num">${M(pv.inn)}</b> · out <b class="num">${M(pv.out)}</b>${t.skipped ? ` · ${t.skipped} row${t.skipped === 1 ? "" : "s"} without a date or amount skipped (headers, totals)` : ""}${t.bad ? ` · <b>${t.bad} amount${t.bad === 1 ? "" : "s"} unreadable</b>` : ""}</div>
+        ${pv.table}`;
     };
-    const body = `<p class="zl-p">Download the statement from your online banking as <b>CSV or Excel</b> and choose it here. Zycount pairs each line with the payment vouchers and receipts you have recorded.</p>
+    const pdfHtml = () => {
+      const pv = preview(pdf.lines);
+      const check = pdf.balanced === true
+        ? `<span class="chip ok">${TICK}Balances check out</span> opening ${M(pdf.opening)} + movements = closing ${M(pdf.closing)}.`
+        : pdf.balanced === false
+          ? "<b>The totals don't match the statement's balances.</b> Check a few lines below; if money in and out look reversed, press Swap."
+          : "The opening and closing balances weren't found, so the totals couldn't be checked against them.";
+      return `<div class="zl-banner ${pdf.balanced === false ? "" : "info"}" style="margin:14px 0 10px">${pdf.lines.length} line${pdf.lines.length === 1 ? "" : "s"} read from the PDF · in <b class="num">${M(pv.inn)}</b> · out <b class="num">${M(pv.out)}</b><br>${check}
+          ${pdf.uncertain ? `<br>${pdf.uncertain} line${pdf.uncertain === 1 ? "" : "s"} marked ? had no in/out marker; the direction was guessed.` : ""}
+          <div style="margin-top:8px"><button type="button" class="zl-btn sm ghost" id="zl-bswap">Swap money in and out</button></div></div>
+        ${pdf.lines.length ? pv.table : '<p class="hint">No transaction lines were found. If this is a scanned statement, download the e-statement from your online banking instead.</p>'}`;
+    };
+    const passwordHtml = (msg) => `<div class="zl-banner" style="margin-top:14px">${E(msg)}</div>
+      <div class="zl-form"><label class="zl-field half"><span>PDF password</span><input class="zl-input" type="password" id="zl-bpw" autocomplete="off"></label>
+      <div class="zl-field half" style="align-self:end"><button type="button" class="zl-btn" id="zl-bpwgo">Open statement</button></div></div>
+      <p class="hint">The password is used only in this browser to open the file. It isn't sent or saved.</p>`;
+    const body = `<p class="zl-p">Choose the statement from ${P ? "your bank or card" : "your bank"}: the <b>PDF e-statement</b>, or a <b>CSV/Excel</b> download from online banking. Any bank works. Lines already in your books or imported before are skipped automatically.</p>
       <div class="zl-form" style="margin-top:12px">
-        <label class="zl-field half"><span>Bank account in your books</span><select class="zl-input" id="zl-bacc">${accounts.map((a) =>
+        <label class="zl-field half"><span>${P ? "Bank or card account" : "Bank account in your books"}</span><select class="zl-input" id="zl-bacc">${accounts.map((a) =>
           `<option value="${a.id}"${a.id === pick ? " selected" : ""}>${E(a.name)} · ${E(a.code)}</option>`).join("")}</select></label>
-        <label class="zl-field half"><span>Statement file</span><input class="zl-input" type="file" id="zl-bfile" accept=".csv,.txt,.xlsx,.xls,.pdf"></label>
+        <label class="zl-field half"><span>Statement file</span><input class="zl-input" type="file" id="zl-bfile" accept=".pdf,.csv,.txt,.xlsx,.xls"></label>
       </div>
       <div id="zl-bmap"></div>`;
     const m = ZL.modal({
-      title: "Upload bank statement", wide: true, body,
+      title: P ? "Import a statement" : "Upload bank statement", wide: true, body,
       actions: [
         { label: "Cancel" },
-        { label: "Import and match", primary: true, onClick: async ({ close }) => {
-          if (!parsed) throw new ZL.ZLError("VALIDATION", "Choose the statement file first.");
-          if (!parsed.lines.length) throw new ZL.ZLError("VALIDATION", "No line has both a date and an amount. Check the columns.");
-          if (parsed.bad) throw new ZL.ZLError("VALIDATION", `${parsed.bad} amount${parsed.bad === 1 ? "" : "s"} couldn't be read. Check the amount columns.`);
-          const withBal = parsed.lines.filter((l) => l.balance != null);
-          const first = parsed.lines[0];
-          const opening = withBal.length && first.balance != null ? Math.round((first.balance - first.amount) * 100) / 100 : null;
-          const closing = withBal.length ? parsed.lines[parsed.lines.length - 1].balance : null;
+        { label: "Import", primary: true, onClick: async ({ close }) => {
+          let lines, opening = null, closing = null;
+          if (pdf) {
+            if (!pdf.lines.length) throw new ZL.ZLError("VALIDATION", "No transaction lines were found in this PDF.");
+            opening = pdf.opening; closing = pdf.closing;
+            lines = pdf.lines.map(({ uncertain, ...l }) => l);
+          } else {
+            if (!parsed) throw new ZL.ZLError("VALIDATION", "Choose the statement file first.");
+            if (!parsed.lines.length) throw new ZL.ZLError("VALIDATION", "No line has both a date and an amount. Check the columns.");
+            if (parsed.bad) throw new ZL.ZLError("VALIDATION", `${parsed.bad} amount${parsed.bad === 1 ? "" : "s"} couldn't be read. Check the amount columns.`);
+            lines = parsed.lines;
+            const first = lines[0];
+            if (lines.some((l) => l.balance != null)) {
+              opening = first.balance != null ? Math.round((first.balance - first.amount) * 100) / 100 : null;
+              closing = lines[lines.length - 1].balance;
+            }
+          }
           const r = await ZL.rpc("import_bank_statement", {
-            p_company: cid(), p_account: m.root.querySelector("#zl-bacc").value, p_name: fileName || "Bank statement",
-            p_lines: parsed.lines, p_opening: opening, p_closing: closing,
+            p_company: cid(), p_account: m.root.querySelector("#zl-bacc").value, p_name: fileName || "Statement",
+            p_lines: lines, p_opening: opening, p_closing: closing,
           });
           close();
-          ZL.toast(`Imported ${r.lines} lines — ${r.matched} matched automatically.`);
-          ZL.open("bankrec", { st: r.id });
+          ZL.toast(`Imported ${r.lines} lines — ${r.matched} already in your books${r.duplicates ? `, ${r.duplicates} imported before` : ""}.`);
+          ZL.open(P ? "bankreview" : "bankrec", { st: r.id });
         } },
       ],
     });
     const slot = m.root.querySelector("#zl-bmap");
+    const accSel = m.root.querySelector("#zl-bacc");
+    const liability = () => { const a = accounts.find((x) => x.id === accSel.value); return !!a && a.type === "LIABILITY"; };
     const redraw = () => { parsed = parseRows(rows, map); slot.innerHTML = mappingHtml(); };
+    const readPdf = async () => {
+      slot.innerHTML = `<p class="hint" style="margin-top:12px">Reading ${E(file.name)}…</p>`;
+      try {
+        pdf = await ZL.statementPdf.read(file, { password, liability: liability() });
+        slot.innerHTML = pdfHtml();
+      } catch (e) {
+        pdf = null;
+        if (e && e.code === "PDF_PASSWORD") {
+          slot.innerHTML = passwordHtml(e.message);
+          const pw = slot.querySelector("#zl-bpw");
+          const open = () => { password = pw.value; readPdf(); };
+          slot.querySelector("#zl-bpwgo").addEventListener("click", open);
+          pw.addEventListener("keydown", (ev) => { if (ev.key === "Enter") { ev.preventDefault(); ev.stopPropagation(); open(); } });
+          pw.focus();
+        } else { slot.innerHTML = ""; m.setError(e); }
+      }
+    };
+    slot.addEventListener("click", (ev) => {
+      if (ev.target.id !== "zl-bswap" || !pdf) return;
+      pdf.lines.forEach((l) => { l.amount = -l.amount; });
+      if (pdf.balanced !== null) pdf.balanced = !pdf.balanced;
+      slot.innerHTML = pdfHtml();
+    });
     slot.addEventListener("change", (ev) => {
       const k = ev.target.dataset.map;
       if (!k) return;
@@ -192,14 +247,17 @@
       if (k === "mode" && map.mode === "signed" && map.amount < 0) map.amount = 0;
       redraw();
     });
+    accSel.addEventListener("change", () => { if (pdf && file) readPdf(); });
     m.root.querySelector("#zl-bfile").addEventListener("change", async (ev) => {
       const f = ev.target.files[0];
       if (!f) return;
       m.setError(null);
+      file = f; password = ""; pdf = null; parsed = null;
+      fileName = f.name.replace(/\.[^.]+$/, "").slice(0, 200);
+      if (/\.pdf$/i.test(f.name) || f.type === "application/pdf") { readPdf(); return; }
       slot.innerHTML = `<p class="hint" style="margin-top:12px">Reading ${E(f.name)}…</p>`;
       try {
         rows = await readFile(f);
-        fileName = f.name.replace(/\.[^.]+$/, "").slice(0, 200);
         map = guessMapping(rows);
         if (map.date < 0) map.date = 0;
         if (map.amount < 0) map.amount = 0;
@@ -207,6 +265,7 @@
       } catch (e) { slot.innerHTML = ""; parsed = null; m.setError(e); }
     });
   }
+  ZL.uploadStatement = upload;
 
   // ── Recording, matching and ignoring a line ───────────────────────────────
   async function recordLine(line) {
@@ -358,7 +417,7 @@
       : `<button type="button" class="zl-btn sm ghost" data-bun="${l.id}">${l.status === "IGNORED" ? "Restore" : "Unmatch"}</button>`;
 
     return ZL.header(st.name, `${bankAcc.name} · ${bankAcc.code} — ${ZL.date(st.date_from)} to ${ZL.date(st.date_to)} · ${lines.length} lines`,
-        `${btn("zl-bback", "← Statements", "ghost")}${can ? btn("zl-brerun", "Match again") : ""}${ZL.can("journal.create") ? btn("zl-bdel", "Delete", "ghost danger") : ""}`) + `
+        `${btn("zl-bback", "← Statements", "ghost")}${can && n.UNMATCHED ? btn("zl-ball", `Record all ${n.UNMATCHED}`, "primary") : ""}${can ? btn("zl-brerun", "Match again") : ""}${ZL.can("journal.create") ? btn("zl-bdel", "Delete", "ghost danger") : ""}`) + `
       <div class="zl-recon">
         <section class="card" style="padding:18px 22px">
           <div class="hint" style="margin-bottom:6px">Cleared</div>
@@ -425,6 +484,8 @@
         return true;
       });
       act("[data-bun]", async (b) => { await ZL.rpc("unmatch_bank_line", { p_line: b.dataset.bun }); return true; });
+      const all = root.querySelector("#zl-ball");
+      if (all) all.addEventListener("click", () => ZL.open("bankreview", { st: p.st }));
       const rerun = root.querySelector("#zl-brerun");
       if (rerun) rerun.addEventListener("click", async () => {
         try { const k = await ZL.rpc("auto_match_statement", { p_statement: p.st }); ZL.toast(k ? `${k} more line${k === 1 ? "" : "s"} matched.` : "No new matches."); again(); }
