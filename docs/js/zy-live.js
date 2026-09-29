@@ -247,6 +247,7 @@
     PERIOD_CLOSED: "Period closed", PERIOD_NOT_FOUND: "No period", JOURNAL_UNBALANCED: "Not balanced", CONFLICT: "Changed by someone else",
     IMMUTABLE: "Can't be changed", DUPLICATE: "Already exists", LAST_ADMIN: "Needs an administrator",
     CONTROL_ACCOUNT: "Control account", CREDIT_LIMIT: "Over the credit limit", LINKED_DOCUMENT: "Posted by a document", IN_USE: "In use",
+    LIMIT: "Limit reached", BUSY: "Busy", UNREADABLE: "Couldn't read it", AI_NOT_CONFIGURED: "Reading is off",
   };
   /** Error box for inside forms and dialogs. Plain validation messages need no title. */
   ZL.errorBox = (e) => {
@@ -532,6 +533,7 @@
   EXTRA_ICONS.doc = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg>`;
   EXTRA_ICONS.key = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden><circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M17 6l3 3M15 8l2 2"/></svg>`;
 
+  EXTRA_ICONS.camera = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/></svg>`;
   EXTRA_ICONS.hash = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/></svg>`;
 
   /** Replaces the demo navigation with the live one for these books. */
@@ -539,7 +541,7 @@
     Object.assign(ICONS, EXTRA_ICONS); // app.html's icon set is defined after this file loads
     const P = ZL.isPersonal();
     const groups = [
-      { label: "", items: [["dashboard", "Dashboard", "dash"], ["transactions", P ? "Money in & out" : "Transactions", "swap"]] },
+      { label: "", items: [["dashboard", "Dashboard", "dash"], ["capture", "Inbox", "camera"], ["transactions", P ? "Money in & out" : "Transactions", "swap"]] },
       { label: "Sales", items: [["sales", "Sales documents", "invoice"], ["customers", "Customers", "users"], ["araging", "Receivables aging", "clock"], ["items", "Items & services", "box"]] },
       { label: "Purchases", items: [["purchases", "Purchase documents", "truck"], ["suppliers", "Suppliers", "building"], ["apaging", "Payables aging", "clock"]] },
       { label: "Reports", items: [["pl", P ? "Income & spending" : "Profit & loss", "chart"], ["bs", P ? "Net worth" : "Balance sheet", "sheet"], ["tb", "Trial balance", "scale"]] },

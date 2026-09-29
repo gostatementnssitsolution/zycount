@@ -105,7 +105,7 @@
     const preferred = (money.find((a) => a.id === last) || money.find((a) => a.code === (P ? "1120" : "1131")) || money[0]).id;
     const others = accounts.filter((a) => !money.includes(a));
     const numRows = kind === "TRANSFER" ? [] : await ZL.numbering.load(ZL.today()).catch(() => []);
-    let fields, title, confirm, numCtl = null;
+    let fields, title, confirm, numCtl = null, cap = null;
     if (kind === "OUT") {
       title = P ? "Money out" : "Record a payment";
       confirm = "Record payment";
@@ -185,6 +185,25 @@
           numCtl = ZL.numbering.wire(root, numRows, ZL.numbering.KIND_OF[kind],
             { money: () => moneyInput.value, moneyInput, dateInput: root.querySelector('[name="date"]') });
         }
+        // The receipt or slip behind it: read into the form and kept with the entry.
+        if (kind !== "TRANSFER" && ZL.capture) {
+          const C = ZL.capture;
+          cap = C.evidence({ root }, { preset: preset.attachment, fill: async (s, att, ev) => {
+            if (s.total != null) C.put(root, "amount", M(Math.abs(s.total)));
+            C.put(root, "date", s.date);
+            const acc = await C.accountFor(s, others, { direction: kind });
+            if (!C.put(root, "other", acc)) ev.note(P ? "Choose what it was for." : "Choose the category.");
+            C.put(root, "party", (s.counterparty && s.counterparty.name) || "");
+            C.put(root, "method", C.methodFor(s));
+            if (!preset.money) C.put(root, "money", C.moneyFor(s, money));
+            C.put(root, "description", s.summary);
+            C.put(root, "reference", s.doc_no || s.payment_reference);
+            if (kind === "IN" && s.tax_total > 0 && s.tax_rate) C.put(root, "tax", String(Math.round(s.tax_rate)));
+            if (s.direction === (kind === "OUT" ? "MONEY_IN" : "MONEY_OUT")) {
+              ev.note(`This looks like money ${kind === "OUT" ? "coming in" : "going out"}. Check you're recording it on the right side.`, "warn");
+            }
+          } });
+        }
       },
       submit: async (v) => {
         if (!v.amount || v.amount <= 0) throw new ZL.ZLError("VALIDATION", "Enter an amount greater than zero.");
@@ -198,6 +217,7 @@
           p_series: num.p_series || null, p_doc_no: num.p_doc_no || null,
         });
         try { if (money.some((a) => a.id === v.money)) localStorage.setItem(prefKey, v.money); } catch (_) { /* ignore */ }
+        if (cap) await cap.link("JOURNAL", r.id);
         ZL.toast(r.doc_no ? `Recorded as ${r.doc_no} and posted (${r.reference}).` : `Recorded and posted as ${r.reference}.`);
         return r;
       },

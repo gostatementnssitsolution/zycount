@@ -294,16 +294,16 @@
       return ZL.rpc("save_trade_doc", { p_company: cid(), p_id: doc ? doc.id : null, p_doc: pdoc, p_lines: plines, p_post: doPost,
         p_series: num.p_series || null, p_doc_no: num.p_doc_no || null, p_allocations: null });
     };
-    let numCtl = null, result = null;
-    const finish = (r, close) => { result = r; close(); };
+    let numCtl = null, result = null, cap = null;
+    const finish = async (r, close) => { if (cap) await cap.link("TRADE_DOC", r.id); result = r; close(); };
     const actions = [{ label: "Cancel" },
       { label: "Save draft", onClick: async ({ root, close }) => finish(await post(root, false), close) }];
     if (canPost) actions.push({ label: t.posts ? "Save & post" : "Save & issue", primary: true, onClick: async ({ root, close, setError }) => {
-      try { finish(await post(root, true), close); }
+      try { await finish(await post(root, true), close); }
       catch (e) {
         if (e.code !== "CREDIT_LIMIT") throw e;
         setError(e);
-        if (await ZL.confirm({ title: "Over the credit limit", message: `${E(e.message)} Post it anyway?`, confirmLabel: "Post anyway" })) finish(await post(root, true, { allow_over_limit: true }), close);
+        if (await ZL.confirm({ title: "Over the credit limit", message: `${E(e.message)} Post it anyway?`, confirmLabel: "Post anyway" })) await finish(await post(root, true, { allow_over_limit: true }), close);
       }
     } });
     const m = ZL.modal({ title: `${doc ? "Draft" : "New"} ${t.label.toLowerCase()}${doc && d.reference && d.source_doc_id ? ` — from ${d.reference}` : ""}`, wide: true, body, actions,
@@ -314,13 +314,15 @@
     const tb = root.querySelector("#zl-dl");
     const itemById = new Map(liveItems.map((i) => [i.id, i]));
     const taxById = new Map(liveTax.map((x) => [x.id, x]));
+    // Amounts come back from the inputs as typed text ("1,500.00"); show them tidied, keep anything unreadable as typed.
+    const shown = (v) => { if (v === "" || v == null) return ""; const n = typeof v === "number" ? v : ZL.parseAmount(v); return Number.isNaN(n) ? String(v) : M(n); };
     const rowHtml = (l, i) => `<tr data-ln="${i}">
       <td><select class="zl-input" data-f="item_id" aria-label="Item"><option value="">—</option>${liveItems.map((it) => opt(it.id, it.code, l.item_id)).join("")}</select></td>
       <td><input class="zl-input" data-f="description" value="${E(l.description || "")}" maxlength="500" aria-label="Description"></td>
       <td><input class="zl-input num r" data-f="qty" value="${E(l.qty == null ? 1 : +l.qty)}" inputmode="decimal" aria-label="Quantity"></td>
       <td><input class="zl-input" data-f="uom" value="${E(l.uom || "")}" maxlength="20" aria-label="Unit"></td>
-      <td><input class="zl-input num r" data-f="unit_price" value="${E(l.unit_price === "" || l.unit_price == null ? "" : M(l.unit_price))}" inputmode="decimal" placeholder="0.00" aria-label="Unit price"></td>
-      <td><input class="zl-input num r" data-f="discount" value="${E(ZL.num(l.discount) ? M(l.discount) : "")}" inputmode="decimal" placeholder="0.00" aria-label="Discount"></td>
+      <td><input class="zl-input num r" data-f="unit_price" value="${E(shown(l.unit_price))}" inputmode="decimal" placeholder="0.00" aria-label="Unit price"></td>
+      <td><input class="zl-input num r" data-f="discount" value="${E(ZL.parseAmount(l.discount) ? shown(l.discount) : "")}" inputmode="decimal" placeholder="0.00" aria-label="Discount"></td>
       <td><select class="zl-input" data-f="account_id" aria-label="Account">${accOptions(accounts, t.side, l.account_id, t.posts ? "Choose account…" : "—")}</select></td>
       <td><select class="zl-input" data-f="tax_code_id" aria-label="SST"><option value="">None</option>${liveTax.map((x) => opt(x.id, `${x.code} ${+x.rate}%`, l.tax_code_id)).join("")}</select></td>
       <td class="amt" data-amt></td>
@@ -392,22 +394,65 @@
       if (terms && c) terms.placeholder = `${c.terms_days} days`;
       draw();
     });
-    root.querySelector("[data-newc]").addEventListener("click", async () => {
-      const id2 = await ZL.editContact(S.kind, null, { stay: true });
-      if (!id2) return;
+    const newContact = async (preset) => {
+      const id2 = await ZL.editContact(S.kind, null, { stay: true, preset });
+      if (!id2) return null;
       const fresh = await contacts(S.kind);
       fresh.forEach((p) => cById.set(p.id, p));
       const p = cById.get(id2);
       cSel.insertAdjacentHTML("beforeend", opt(p.id, `${p.name} · ${p.code}`, p.id));
       cSel.value = p.id;
       cSel.dispatchEvent(new Event("change"));
-    });
+      return p;
+    };
+    root.querySelector("[data-newc]").addEventListener("click", () => newContact());
     if (!rows.length) { rows.push(blank()); rows.push(blank()); }
     draw();
     numCtl = numFields.length ? ZL.numbering.wire(root, numRows, seriesKind(type), { dateInput: root.querySelector('[name="date"]'),
       moneyInput: root.querySelector('[name="money"]'), money: () => sel("money"), autoHint: "Given when you post.",
       initial: d.draft_doc_no || null, series: d.draft_series_id || null }) : null;
     if (numCtl && !canPost) root.querySelectorAll('[name="series"],[name="doc_no"]').forEach((el) => { el.closest("label").hidden = true; });
+
+    // A photo or PDF of the document: read it into the form, keep it with the entry.
+    if (ZL.capture && !(doc && doc.status !== "DRAFT")) {
+      const C = ZL.capture;
+      cap = C.evidence(m, { preset: preset.attachment, fill: async (s, att, ev) => {
+        const c = C.matchContact(s.counterparty, people);
+        if (c) C.put(root, "contact", c.id);
+        else if (s.counterparty && s.counterparty.name) {
+          ev.note(`<b>${E(s.counterparty.name)}</b> isn't one of your ${S.who}s yet. <button type="button" class="zl-ref" data-x>Add as ${S.who}</button>`, "",
+            { "[data-x]": async () => !!(await newContact(C.contactFrom(s))) });
+        }
+        C.put(root, "date", s.date);
+        if (t.side === "AP") C.put(root, "reference", s.doc_no);
+        C.put(root, "description", s.summary);
+        if (t.effect === 1 && s.date && s.due_date && s.due_date >= s.date) C.put(root, "terms", String(days(s.date, s.due_date)));
+        if (t.money) { C.put(root, "method", C.methodFor(s)); C.put(root, "money", C.moneyFor(s, money)); }
+        tb.querySelectorAll("[data-ln]").forEach(readRow);
+        const acc = await C.accountFor(s, accounts, { contact: c, direction: t.side === "AR" ? "IN" : "OUT", usable: lineUsable });
+        const taxId = C.taxFor(s, liveTax);
+        const got = C.linesOf(s, { taxCode: !!taxId });
+        if (got.lines.length) {
+          rows.length = 0;
+          got.lines.forEach((l) => {
+            const q = l.quantity > 0 ? l.quantity : 1;
+            const price = l.unit_price != null && Math.abs(l.unit_price * q - l.amount) <= 0.05 ? l.unit_price : r2(l.amount / q);
+            rows.push({ item_id: "", description: (l.description || s.summary || "").slice(0, 500), qty: q, uom: "", unit_price: price, discount: "",
+              account_id: acc, tax_code_id: l.tax_rate === 0 || got.noTax ? "" : taxId });
+          });
+          if (s.discount && got.discountOnLast) rows[rows.length - 1].discount = s.discount;
+          root.querySelector('[name="incl"]').checked = got.inclusive;
+          draw();
+        }
+        const incl = root.querySelector('[name="incl"]').checked;
+        const sum = rows.reduce((a, l) => a + ZL.cents(calc(l, incl).tot), 0) / 100;
+        if (s.total != null && Math.abs(sum - s.total) > 0.05) {
+          ev.note(`The document's total is <b>RM ${M(s.total)}</b>; the lines here come to RM ${M(sum)}. Adjust a line, the SST or the rounding before you post.`, "warn");
+        }
+        if (s.tax_total > 0 && !taxId) ev.note(`SST of RM ${M(s.tax_total)} is shown but no tax code has that rate, so it's kept in the line amounts.`, "warn");
+        if (!acc && t.posts) ev.note(`Choose the ${t.side === "AP" ? "expense" : "income"} account on each line.`);
+      } });
+    }
     return null;
   };
 
@@ -443,7 +488,7 @@
         <button type="button" class="zl-btn sm ghost" id="zl-auto">Apply oldest first</button></div>
       <div id="zl-open" class="zl-lines-wrap"></div>
       <div class="zl-totals" id="zl-ptot" style="margin-top:8px"></div>`;
-    let open = [], result = null;
+    let open = [], result = null, cap = null;
     const m = ZL.modal({ title: t.effect === -1 ? (t.side === "AR" ? "Receive payment" : "Pay supplier") : `Record ${t.label.toLowerCase()}`, wide: true, body,
       actions: [{ label: "Cancel" }, { label: `Post ${t.label.toLowerCase()}`, primary: true, onClick: async ({ root, close }) => {
         const v = (n) => root.querySelector(`[name="${n}"]`).value.trim();
@@ -461,6 +506,7 @@
           amount, bank_charge: charge || 0, money_account_id: v("money"), pay_method: v("method"), reference: v("reference"), description: v("description") },
           p_lines: [], p_post: true, p_series: num.p_series || null, p_doc_no: num.p_doc_no || null, p_allocations: allocs });
         try { localStorage.setItem(prefKey, v("money")); } catch (_) { /* ignore */ }
+        if (cap) await cap.link("TRADE_DOC", r.id);
         result = r; close();
       } }],
       onClose: () => { if (result) { ZL.toast(`${t.label} ${result.doc_no} posted (${result.reference}).`); ZL.open("tradedoc", { id: result.id }); } } });
@@ -507,6 +553,48 @@
       tot();
     });
     await loadOpen();
+
+    // A payment slip, transfer screenshot or cheque: read it, knock off what it names.
+    if (ZL.capture) {
+      const C = ZL.capture;
+      const cSel = root.querySelector('[name="contact"]');
+      const choose = async (c) => { C.put(root, "contact", c.id, { silent: true }); preset.apply = null; await loadOpen(); };
+      cap = C.evidence(m, { preset: preset.attachment, fill: async (s, att, ev) => {
+        const c = C.matchContact(s.counterparty, people);
+        if (c) await choose(c);
+        else if (s.counterparty && s.counterparty.name) {
+          ev.note(`<b>${E(s.counterparty.name)}</b> isn't one of your ${S.who}s yet. <button type="button" class="zl-ref" data-x>Add as ${S.who}</button>`, "", { "[data-x]": async () => {
+            const id2 = await ZL.editContact(S.kind, null, { stay: true, preset: C.contactFrom(s) });
+            if (!id2) return false;
+            const [p] = await ZL.select("contacts", "*", (q) => q.eq("id", id2));
+            people.push(p);
+            cSel.insertAdjacentHTML("beforeend", opt(p.id, `${p.name} · ${p.code}`, p.id));
+            await choose(p);
+            return true;
+          } });
+        }
+        C.put(root, "date", s.date);
+        if (s.total != null) C.put(root, "amount", M(Math.abs(s.total)));
+        C.put(root, "method", C.methodFor(s));
+        C.put(root, "money", C.moneyFor(s, money));
+        C.put(root, "reference", (s.payment_reference || s.doc_no || "").slice(0, 60));
+        C.put(root, "description", s.summary);
+        const want = (s.references_paid || []).map((x) => String(x).toUpperCase().replace(/[^A-Z0-9]/g, "")).filter(Boolean);
+        const key = (x) => String(x || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+        const inputs = [...root.querySelectorAll("[data-apply]")];
+        const named = inputs.filter((i) => { const o = open.find((x) => x.id === i.dataset.apply); return o && want.some((w) => w === key(o.doc_no) || w === key(o.reference)); });
+        if (named.length) {
+          let left = ZL.cents(ZL.parseAmount(amountInp.value) || 0);
+          inputs.forEach((i) => { i.value = ""; });
+          named.forEach((i) => { const take = Math.min(left, ZL.cents(i.dataset.max)); i.value = take ? M(take / 100) : ""; left -= take; if (take) i.classList.add("zl-filled"); });
+          ev.note(`Knocked off ${named.map((i) => E((open.find((x) => x.id === i.dataset.apply) || {}).doc_no)).join(", ")} — named on the ${s.document_type === "CHEQUE" ? "cheque" : "slip"}.`, "ok");
+        } else if (inputs.length && ZL.parseAmount(amountInp.value)) {
+          root.querySelector("#zl-auto").click();
+          if (want.length) ev.note(`The document mentions ${want.map(E).join(", ")}, which isn't open for this ${S.who}. Applied oldest first — check the knock-off.`, "warn");
+        }
+        tot();
+      } });
+    }
     return null;
   };
 
@@ -581,7 +669,7 @@
         ZL.header(`${b.title || t.label} ${d.doc_no || "(draft)"}`, d.status === "VOID" ? `Voided ${ZL.date(d.void_date)} — ${d.void_reason || ""}` : d.status === "DRAFT" ? "Draft — not in the books until you post it." : `${t.posts ? "Posted" : "Issued"} ${ZL.dateTime(d.posted_at)}`,
           acts.join("")) + `
         <section class="card"><div class="zl-facts">${facts.map(([k, v]) => `<div><span>${E(k)}</span><b>${v}</b></div>`).join("")}<div><span>Status</span><b>${statusChip(d)}</b></div></div></section>
-        <div class="zl-vwrap" style="margin-top:16px;max-height:none">${html}</div>${allocTable}`;
+        <div class="zl-vwrap" style="margin-top:16px;max-height:none">${html}</div>${allocTable}<div data-attach></div>`;
     },
     after(root, ctx) {
       const b = ctx.bundle;
@@ -615,6 +703,7 @@
       on("[data-doc]", (el) => ZL.open("tradedoc", { id: el.dataset.doc }));
       on("[data-contact]", (el) => ZL.open("contact", { id: el.dataset.contact }));
       ZL.wireJournalLinks(root);
+      if (ZL.capture) ZL.capture.panel(root.querySelector("[data-attach]"), "TRADE_DOC", d.id, { posted: d.status !== "DRAFT" });
     },
   });
 
@@ -725,7 +814,7 @@
   ZL.editContact = async (kind, id = null, opts = {}) => {
     const [rows, accounts, taxes] = await Promise.all([
       id ? ZL.select("contacts", "*", (q) => q.eq("id", id)) : Promise.resolve([]), ZL.accounts(), taxCodes()]);
-    const c = rows[0] || { kind, terms_days: 30, credit_limit: 0, country: "MY", is_active: true };
+    const c = rows[0] || Object.assign({ kind, terms_days: 30, credit_limit: 0, country: "MY", is_active: true }, opts.preset || {});
     const side = kind === "CUSTOMER" ? "AR" : "AP";
     const controls = accounts.filter((a) => a.is_control && a.is_active && a.type === (side === "AR" ? "ASSET" : "LIABILITY"));
     const who = kind === "CUSTOMER" ? "customer" : "supplier";
@@ -1094,7 +1183,7 @@
       ${liveTax.length ? `<label class="zl-check" style="margin:12px 0 4px"><input type="checkbox" name="incl" checked><span>Amounts include SST</span></label>` : ""}
       <div class="zl-lines-wrap"><table class="zl-lines" style="min-width:${liveTax.length ? 620 : 520}px"><thead><tr><th style="width:230px">Account</th><th>Description</th>${liveTax.length ? '<th style="width:110px">SST</th>' : ""}<th style="width:120px" class="r">Amount</th><th style="width:30px"></th></tr></thead><tbody id="zl-cl"></tbody></table></div>
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-top:8px"><button type="button" class="zl-btn sm ghost" id="zl-cladd">+ Add line</button><div class="zl-totals" id="zl-ctot"></div></div>`;
-    let result = null;
+    let result = null, cap = null;
     const m = ZL.modal({ title: "Cash book entry", wide: true, body,
       actions: [{ label: "Cancel" }, { label: "Post", primary: true, onClick: async ({ root: r, close }) => {
         r.querySelectorAll("[data-ln]").forEach(read);
@@ -1110,6 +1199,7 @@
         result = await ZL.rpc("record_cash_entry", { p_company: cid(), p_kind: v("kind"), p_date: v("date"), p_money_account: v("money"), p_lines: lines,
           p_description: v("description") || null, p_party: v("party") || null, p_method: v("method") || null, p_reference: v("reference") || null,
           p_series: num.p_series || null, p_doc_no: num.p_doc_no || null, p_tax_inclusive: r.querySelector('[name="incl"]') ? r.querySelector('[name="incl"]').checked : true });
+        if (cap) await cap.link("JOURNAL", result.id);
         close();
       } }],
       onClose: () => { if (result) { ZL.toast(`Posted as ${result.doc_no} (${result.reference}).`); ZL.refresh(); } } });
@@ -1117,12 +1207,32 @@
     const tb = root.querySelector("#zl-cl");
     function read(tr) { const l = rows[Number(tr.dataset.ln)]; tr.querySelectorAll("[data-f]").forEach((el) => { l[el.dataset.f] = el.value.trim(); }); }
     const draw = () => { tb.innerHTML = rows.map(rowHtml).join(""); tot(); };
+    const taxById = new Map(liveTax.map((x) => [x.id, x]));
+    /** What the voucher comes to: SST is inside the amounts when "include SST" is ticked, added on top when it isn't. */
+    const sums = () => {
+      const inclEl = root.querySelector('[name="incl"]');
+      const incl = inclEl ? inclEl.checked : true;
+      let net = 0, tax = 0;
+      rows.forEach((l) => {
+        const a = ZL.parseAmount(l.amount) || 0, rate = ZL.num((taxById.get(l.tax_code_id) || {}).rate);
+        const t = rate ? (incl ? r2((a * rate) / (100 + rate)) : r2((a * rate) / 100)) : 0;
+        net += ZL.cents(incl ? a - t : a); tax += ZL.cents(t);
+      });
+      return { net: net / 100, tax: tax / 100, total: (net + tax) / 100 };
+    };
     const tot = () => {
-      const t = rows.reduce((s, l) => s + ZL.cents(ZL.parseAmount(l.amount) || 0), 0);
-      root.querySelector("#zl-ctot").innerHTML = `<span class="grand">Total</span><b class="grand">RM ${M(t / 100)}</b>`;
+      const s = sums();
+      root.querySelector("#zl-ctot").innerHTML = `${s.tax ? `<span>Before SST</span><b>${M(s.net)}</b><span>SST</span><b>${M(s.tax)}</b>` : ""}
+        <span class="grand">Total</span><b class="grand">RM ${M(s.total)}</b>`;
     };
     tb.addEventListener("input", (ev) => { const tr = ev.target.closest("[data-ln]"); if (tr) { read(tr); tot(); } });
-    tb.addEventListener("change", (ev) => { if (ev.target.dataset.f === "amount") { const a = ZL.parseAmount(ev.target.value); if (!Number.isNaN(a) && a) ev.target.value = M(a); } });
+    tb.addEventListener("change", (ev) => {
+      const tr = ev.target.closest("[data-ln]");
+      if (tr) read(tr);
+      if (ev.target.dataset.f === "amount") { const a = ZL.parseAmount(ev.target.value); if (!Number.isNaN(a) && a) ev.target.value = M(a); }
+      tot();
+    });
+    if (root.querySelector('[name="incl"]')) root.querySelector('[name="incl"]').addEventListener("change", tot);
     tb.addEventListener("click", (ev) => { const d = ev.target.closest("[data-del]"); if (!d) return; tb.querySelectorAll("[data-ln]").forEach(read); rows.splice(Number(d.closest("[data-ln]").dataset.ln), 1); if (!rows.length) rows.push({}); draw(); });
     root.querySelector("#zl-cladd").addEventListener("click", () => { tb.querySelectorAll("[data-ln]").forEach(read); rows.push({}); draw(); });
     const wireNum = () => ZL.numbering.wire(root, numRows, numKind(), { dateInput: root.querySelector('[name="date"]'), moneyInput: root.querySelector('[name="money"]'), money: () => root.querySelector('[name="money"]').value });
@@ -1137,6 +1247,42 @@
       numCtl = fresh.length ? wireNum() : null;
     });
     draw();
+
+    // A receipt or bill: read it into lines, keep it with the voucher.
+    if (ZL.capture) {
+      const C = ZL.capture;
+      cap = C.evidence(m, { preset: preset.attachment, fill: async (s, att, ev) => {
+        const want = s.direction === "MONEY_IN" ? "IN" : "OUT";
+        if (root.querySelector('[name="kind"]').value !== want) C.put(root, "kind", want);
+        C.put(root, "date", s.date);
+        C.put(root, "party", (s.counterparty && s.counterparty.name) || "");
+        C.put(root, "method", C.methodFor(s));
+        if (!preset.money) C.put(root, "money", C.moneyFor(s, money));
+        C.put(root, "reference", (s.doc_no || s.payment_reference || "").slice(0, 40));
+        C.put(root, "description", s.summary);
+        const acc = await C.accountFor(s, accounts.filter((a) => !isMoney(a)), { direction: want, usable: lineUsable });
+        const taxId = liveTax.length ? C.taxFor(s, liveTax) : "";
+        const got = C.linesOf(s, { taxCode: !!taxId });
+        if (got.lines.length) {
+          rows.length = 0;
+          got.lines.forEach((l) => rows.push({ account_id: acc, description: (l.description || "").slice(0, 200), tax_code_id: l.tax_rate === 0 || got.noTax ? "" : taxId, amount: M(l.amount) }));
+          if (s.discount && got.discountOnLast) {
+            const last = rows[rows.length - 1];
+            last.amount = M(ZL.parseAmount(last.amount) - s.discount);
+          }
+          const incl = root.querySelector('[name="incl"]');
+          if (incl) incl.checked = got.inclusive || !taxId;
+          draw();
+          tb.querySelectorAll("[data-f]").forEach((el) => { if (el.value) el.classList.add("zl-filled"); });
+        }
+        const got2 = sums();
+        if (s.total != null && Math.abs(got2.total - Math.abs(s.total)) > 0.05) {
+          ev.note(`The document's total is <b>RM ${M(Math.abs(s.total))}</b>; this voucher comes to RM ${M(got2.total)}. Adjust a line or the SST before you post.`, "warn");
+        }
+        if (s.tax_total > 0 && !taxId) ev.note(`SST of RM ${M(s.tax_total)} is shown but no tax code has that rate, so it's kept in the amount.`, "warn");
+        if (!acc) ev.note("Choose the account on each line.");
+      } });
+    }
   };
 
   ZL.register("cashbook", {

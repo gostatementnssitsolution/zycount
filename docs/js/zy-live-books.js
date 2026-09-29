@@ -567,13 +567,20 @@
         const numbering = ZL.can("journal.post") ? await ZL.numbering.load(entry.date).catch(() => []) : [];
         return editorHtml(Object.assign({}, entry, { lines, numbering }), accounts);
       }
-      return detailHtml(entry, lines, accounts);
+      ctx.entry = entry;
+      return detailHtml(entry, lines, accounts) + '<div data-attach></div>';
     },
     after(root, ctx) {
       const back = root.querySelector("#zl-back");
       if (back) back.addEventListener("click", () => go("journals"));
       if (root.querySelector("#zl-lines")) wireEditor(root, ctx);
       else if (root.querySelector("#zl-jd")) wireDetail(root, ctx);
+      const slot = root.querySelector("[data-attach]");
+      if (slot && ZL.capture && ctx.entry) {
+        // A document's journal shows the document's files too.
+        ZL.select("trade_docs", "id", (q) => q.eq("journal_entry_id", ctx.entry.id)).catch(() => [])
+          .then((docs) => ZL.capture.panel(slot, "JOURNAL", ctx.entry.id, { extra: docs.map((d) => ["TRADE_DOC", d.id]), posted: ctx.entry.status !== "DRAFT" }));
+      }
     },
   });
 
