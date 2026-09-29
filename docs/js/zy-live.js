@@ -551,10 +551,18 @@
     });
   };
 
+  const opened = new Set();
+  ZL.noteAdminOpen = (c) => {
+    if (!c || !c.admin_access || opened.has(c.company_id)) return;
+    opened.add(c.company_id);
+    ZL.rpc("log_event", { p_company: c.company_id, p_action: "admin.open" }).catch(() => {});
+  };
+
   ZL.switchCompany = (companyId) => {
     const c = ZL.companies.find((x) => x.company_id === companyId);
     if (!c) return;
     ZL.company = c;
+    ZL.noteAdminOpen(c);
     ZL.invalidate();
     try { localStorage.setItem(COMPANY_KEY, companyId); sessionStorage.removeItem(PARAMS_KEY); } catch (_) { /* ignore */ }
     ZL.params = {};
@@ -661,10 +669,14 @@
     menu.id = "zl-co-menu";
     menu.className = "zl-menu";
     menu.setAttribute("role", "menu");
-    menu.innerHTML = `<div class="zl-menu-h">Your books</div>` +
-      ZL.companies.map((c) => `<button type="button" role="menuitemradio" aria-checked="${ZL.company && c.company_id === ZL.company.company_id}" data-co="${c.company_id}">
-        <span><b>${ZL.esc(c.name)}</b><small>${c.kind === "PERSONAL" ? "Personal" : "Business"} · ${ZL.esc(c.role)}</small></span>
-        ${ZL.company && c.company_id === ZL.company.company_id ? TICK : ""}</button>`).join("") +
+    const item = (c) => `<button type="button" role="menuitemradio" aria-checked="${ZL.company && c.company_id === ZL.company.company_id}" data-co="${c.company_id}" data-co-name="${ZL.esc(c.name.toLowerCase())}">
+        <span><b>${ZL.esc(c.name)}</b><small>${c.kind === "PERSONAL" ? "Personal" : "Business"} · ${c.admin_access ? "Client — admin access" : ZL.esc(c.role)}</small></span>
+        ${ZL.company && c.company_id === ZL.company.company_id ? TICK : ""}</button>`;
+    const own = ZL.companies.filter((c) => !c.admin_access), clients = ZL.companies.filter((c) => c.admin_access);
+    menu.innerHTML = `<div class="zl-menu-h">Your books</div>` + own.map(item).join("") +
+      (clients.length ? `<div class="zl-menu-h">Client books (${clients.length})</div>` +
+        (clients.length > 6 ? `<div style="padding:4px 10px 6px"><input class="zl-input" id="zl-co-find" placeholder="Find a client" style="padding:6px 8px;font-size:13px"></div>` : "") +
+        `<div class="zl-menu-scroll">${clients.map(item).join("")}</div>` : "") +
       `<button type="button" role="menuitem" data-co-new class="zl-menu-new">+ New set of books</button>`;
     const r = anchor.getBoundingClientRect();
     menu.style.top = `${r.bottom + 6 + window.scrollY}px`;
@@ -674,6 +686,14 @@
     const onDoc = (ev) => { if (!menu.contains(ev.target)) close(); };
     const onKey = (ev) => { if (ev.key === "Escape") close(); };
     setTimeout(() => { document.addEventListener("click", onDoc); document.addEventListener("keydown", onKey); }, 0);
+    const find = menu.querySelector("#zl-co-find");
+    if (find) {
+      find.addEventListener("input", () => {
+        const q = find.value.trim().toLowerCase();
+        menu.querySelectorAll(".zl-menu-scroll [data-co]").forEach((b) => { b.hidden = !!q && !b.dataset.coName.includes(q); });
+      });
+      setTimeout(() => find.focus(), 0);
+    }
     menu.querySelectorAll("[data-co]").forEach((b) => b.addEventListener("click", () => {
       close();
       if (!ZL.company || b.dataset.co !== ZL.company.company_id) ZL.switchCompany(b.dataset.co);
@@ -1035,6 +1055,7 @@
     let stored = null;
     try { stored = localStorage.getItem(COMPANY_KEY); } catch (_) { /* ignore */ }
     ZL.company = ZL.companies.find((c) => c.company_id === stored) || ZL.companies[0];
+    ZL.noteAdminOpen(ZL.company);
 
     // A reload keeps the page you were on, including routes that only exist live.
     const fromHash = location.hash.replace("#", "");

@@ -39,10 +39,42 @@
     "period.generate": "Periods generated", "period.close": "Period closed", "period.reopen": "Period reopened",
     "user.create": "Member added", "user.edit": "Role changed", "user.delete": "Member removed",
     "user.invite": "Invite created", "user.invite_cancel": "Invite cancelled", "user.join": "Joined by invite",
-    "admin.join": "Zycount admin joined", "bank.import": "Statement uploaded", "bank.delete": "Statement deleted",
+    "admin.join": "Zycount admin joined", "admin.open": "Zycount admin opened", "bank.import": "Statement uploaded", "bank.delete": "Statement deleted", "bank.record": "Statement recorded",
     "numbering.create": "Numbering added", "numbering.edit": "Numbering changed", "numbering.delete": "Numbering removed",
   };
   const tone = (a) => (/reverse|delete|reopen|archive/.test(a) ? "warn" : /post|close/.test(a) ? "ok" : "");
+
+  /** Makes a one-time invite link for a set of books and shows it ready to share. */
+  ZL.invite = async (companyId, companyName, role) => {
+        const roles = ["Accountant", "FinanceManager", "Auditor", "ReadOnly", "Admin", "SuperAdmin"];
+        const token = await ZL.form({
+          title: ZL.T("Invite someone", "Share your books"),
+          intro: "Zycount makes a private link. Send it to the person yourself — by WhatsApp or email. It works once and expires in 7 days.",
+          confirmLabel: "Create link",
+          fields: [
+            { name: "role", label: "Their role", type: "select", value: role || "Accountant", options: roles.map((r) => ({ value: r, label: ROLE_NAME[r] })) },
+            { name: "note", label: "Who is it for?", placeholder: "Optional — e.g. Siti, our accountant" },
+          ],
+          submit: (v) => ZL.rpc("create_invite", { p_company: companyId, p_role: v.role, p_note: v.note || null }),
+        });
+        if (typeof token !== "string") return;
+        const link = new URL(`login.html#invite=${token}`, location.href).href;
+        const text = `Join ${companyName} on Zycount: ${link}`;
+        ZL.modal({
+          title: "Invite link ready",
+          body: `<p class="zl-p" style="margin-bottom:12px">Send this link to the person. Anyone who opens it can join once, so share it only with them.</p>
+            <input class="zl-input" id="zl-invlink" readonly value="${E(link)}" style="font-size:13px">
+            <p style="margin-top:12px"><a class="zl-btn" href="https://wa.me/?text=${encodeURIComponent(text)}" target="_blank" rel="noopener">Share on WhatsApp</a></p>`,
+          actions: [
+            { label: "Done" },
+            { label: "Copy link", primary: true, onClick: async ({ close, root: m }) => {
+              try { await navigator.clipboard.writeText(link); } catch (_) { const i = m.querySelector("#zl-invlink"); i.select(); document.execCommand("copy"); }
+              ZL.toast("Link copied."); close();
+            } },
+          ],
+          onClose: () => ZL.refresh(),
+        });
+  };
 
   // ══ Audit trail ═══════════════════════════════════════════════════════════
   ZL.register("audit", {
@@ -147,36 +179,7 @@
     },
     after(root) {
       const add = root.querySelector("#zl-uadd");
-      if (add) add.addEventListener("click", async () => {
-        const roles = ["Accountant", "FinanceManager", "Auditor", "ReadOnly", "Admin", "SuperAdmin"];
-        const token = await ZL.form({
-          title: ZL.T("Invite someone", "Share your books"),
-          intro: "Zycount makes a private link. Send it to the person yourself — by WhatsApp or email. It works once and expires in 7 days.",
-          confirmLabel: "Create link",
-          fields: [
-            { name: "role", label: "Their role", type: "select", value: "Accountant", options: roles.map((r) => ({ value: r, label: ROLE_NAME[r] })) },
-            { name: "note", label: "Who is it for?", placeholder: "Optional — e.g. Siti, our accountant" },
-          ],
-          submit: (v) => ZL.rpc("create_invite", { p_company: cid(), p_role: v.role, p_note: v.note || null }),
-        });
-        if (typeof token !== "string") return;
-        const link = new URL(`login.html#invite=${token}`, location.href).href;
-        const text = `Join ${ZL.company.name} on Zycount: ${link}`;
-        ZL.modal({
-          title: "Invite link ready",
-          body: `<p class="zl-p" style="margin-bottom:12px">Send this link to the person. Anyone who opens it can join once, so share it only with them.</p>
-            <input class="zl-input" id="zl-invlink" readonly value="${E(link)}" style="font-size:13px">
-            <p style="margin-top:12px"><a class="zl-btn" href="https://wa.me/?text=${encodeURIComponent(text)}" target="_blank" rel="noopener">Share on WhatsApp</a></p>`,
-          actions: [
-            { label: "Done" },
-            { label: "Copy link", primary: true, onClick: async ({ close, root: m }) => {
-              try { await navigator.clipboard.writeText(link); } catch (_) { const i = m.querySelector("#zl-invlink"); i.select(); document.execCommand("copy"); }
-              ZL.toast("Link copied."); close();
-            } },
-          ],
-          onClose: () => ZL.refresh(),
-        });
-      });
+      if (add) add.addEventListener("click", () => ZL.invite(cid(), ZL.company.name, "Accountant"));
       root.querySelectorAll("[data-revoke]").forEach((b) => b.addEventListener("click", async () => {
         if (!(await ZL.confirm({ title: "Cancel this invite?", message: "The link stops working straight away.", confirmLabel: "Cancel invite", danger: true }))) return;
         try {
@@ -356,7 +359,8 @@
       const kpi = (label, v, sub) => `<div class="kpi"><div class="klbl">${label}</div><div class="kval num">${Number(v || 0).toLocaleString("en-MY")}</div><div class="hint">${sub}</div></div>`;
       const seg = [["books", `Books (${books.length})`], ["users", `Users (${users.length})`]].map(([v, l]) =>
         `<button type="button" data-atab="${v}" aria-pressed="${tab === v}">${l}</button>`).join("");
-      return ZL.header("Admin console", "Every user and set of books on Zycount. Only platform administrators see this page.") + `
+      return ZL.header("Admin console", "Every user and set of books on Zycount. You have owner rights in all of them.",
+          `<button type="button" class="zl-btn primary" id="zl-anew">+ New client books</button>`) + `
         <div class="kpi-head zl-kpis">
           ${kpi("Users", ov.users, `${ov.signups_30d} joined in 30 days`)}
           ${kpi("Business books", ov.business, "Companies")}
@@ -377,7 +381,8 @@
             <td class="r num">${c.members}</td><td class="r num">${c.posted}</td>
             <td class="nil">${c.last_entry ? ZL.date(c.last_entry) : "—"}</td>
             <td class="nil" style="white-space:nowrap">${ZL.date(c.created_at)}</td>
-            <td class="r"><button type="button" class="zl-btn sm${c.i_am_member ? "" : " ghost"}" data-aopen="${c.id}" data-member="${c.i_am_member ? 1 : 0}" data-name="${E(c.name)}">${c.i_am_member ? "Open" : "Open for support"}</button></td></tr>`).join("")
+            <td class="r" style="white-space:nowrap"><button type="button" class="zl-btn sm ghost" data-ainvite="${c.id}" data-name="${E(c.name)}">Invite</button>
+              <button type="button" class="zl-btn sm" data-aopen="${c.id}">Open</button></td></tr>`).join("")
             || `<tr><td colspan="8" class="nil">Nothing matches.</td></tr>`}</tbody>`
         : `<thead><tr><th>Person</th><th>Signed up</th><th>Last sign-in</th><th class="r">Books</th><th></th></tr></thead>
           <tbody>${u.map((x) => `<tr>
@@ -388,7 +393,7 @@
             <td>${x.is_admin ? '<span class="chip ok">Platform admin</span>' : ""}</td></tr>`).join("")
             || `<tr><td colspan="5" class="nil">Nothing matches.</td></tr>`}</tbody>`}
         </table></div>
-        <div class="proofrow"><span>Opening someone's books for support adds you as an owner there and writes it to that company's audit trail.</span></div></section>`;
+        <div class="proofrow"><span>Set up a client: <b>New client books</b>, then <b>Invite</b> to send the owner a one-time link. Opening a client's books is written to their audit trail.</span></div></section>`;
     },
     after(root, ctx) {
       const p = ctx.params;
@@ -400,19 +405,13 @@
       }
       root.querySelectorAll("[data-aopen]").forEach((b) => b.addEventListener("click", async () => {
         const id = b.dataset.aopen;
-        if (b.dataset.member !== "1") {
-          const ok = await ZL.confirm({ title: `Open ${E(b.dataset.name)}?`,
-            message: "You'll be added to these books as an owner so you can check and correct them. The company's audit trail records that a Zycount administrator joined.",
-            confirmLabel: "Open for support" });
-          if (!ok) return;
-          try {
-            await ZL.rpc("admin_join_company", { p_company: id });
-            ZL.companies = await ZL.rpc("my_companies");
-          } catch (e) { ZL.toast(ZL.errorText(e), "bad"); return; }
-        }
+        if (!ZL.companies.some((c) => c.company_id === id)) ZL.companies = await ZL.rpc("my_companies");
         ZL.switchCompany(id);
         go("dashboard");
       }));
+      root.querySelectorAll("[data-ainvite]").forEach((b) => b.addEventListener("click", () => ZL.invite(b.dataset.ainvite, b.dataset.name, "SuperAdmin")));
+      const add = root.querySelector("#zl-anew");
+      if (add) add.addEventListener("click", () => ZL.createCompany());
     },
   });
 })();
