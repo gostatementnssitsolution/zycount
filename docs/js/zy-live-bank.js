@@ -215,6 +215,11 @@
     const order = isIn ? ["REVENUE", "LIABILITY", "EQUITY", "ASSET"] : ["EXPENSE", "COST_OF_SALES", "ASSET", "LIABILITY", "EQUITY"];
     const opts = order.flatMap((t) => accounts.filter((a) => a.type === t).map((a) => ({ value: a.id, label: `${a.name} · ${a.code}`, group: ZL.typeLabel(t) })));
     const sst = !P && isIn && accounts.some((a) => a.code === "2150");
+    const [st] = await ZL.select("bank_statements", "account_id", (q) => q.eq("id", line.statement_id));
+    const bankAccount = st ? st.account_id : null;
+    const numRows = await ZL.numbering.load(line.date).catch(() => []);
+    const kind = isIn ? "RECEIPT" : "PAYMENT";
+    let numCtl = null;
     return ZL.form({
       title: isIn ? "Record money received" : "Record a payment",
       intro: `${ZL.date(line.date)} · <b>RM ${M(Math.abs(line.amount))}</b> ${isIn ? "in" : "out"} — ${E(line.description || "")}. It is posted ${P ? "" : `as a new ${isIn ? "receipt (OR)" : "voucher (PV)"} `}and matched to this line.`,
@@ -222,13 +227,18 @@
       fields: [
         { name: "other", label: isIn ? (P ? "Where it came from" : "Category") : (P ? "What for" : "Category"), type: "select", required: true, value: "",
           options: [{ value: "", label: "Choose…" }].concat(opts) },
+        ...ZL.numbering.fields(numRows, kind, bankAccount),
         ...(P ? [] : [{ name: "party", label: isIn ? "Received from" : "Paid to", placeholder: "Optional" }]),
         ...(sst ? [{ name: "tax", label: "SST included", type: "select", value: "0", half: true,
           options: [{ value: "0", label: "No SST" }, { value: "8", label: "Service tax 8%" }, { value: "6", label: "Service tax 6%" }, { value: "10", label: "Sales tax 10%" }, { value: "5", label: "Sales tax 5%" }] }] : []),
         { name: "description", label: "Description", value: line.description || "" },
       ],
-      submit: (v) => ZL.rpc("record_from_bank_line", { p_line: line.id, p_other_account: v.other, p_description: v.description || null,
-        p_party: v.party || null, p_tax_rate: Number(v.tax || 0) }),
+      onOpen: (root) => { numCtl = ZL.numbering.wire(root, numRows, kind, { money: () => bankAccount }); },
+      submit: (v) => {
+        const num = numCtl ? numCtl.read() : {};
+        return ZL.rpc("record_from_bank_line", { p_line: line.id, p_other_account: v.other, p_description: v.description || null,
+          p_party: v.party || null, p_tax_rate: Number(v.tax || 0), p_series: num.p_series || null, p_doc_no: num.p_doc_no || null });
+      },
     });
   }
 

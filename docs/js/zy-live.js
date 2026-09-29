@@ -531,6 +531,8 @@
   EXTRA_ICONS.doc = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg>`;
   EXTRA_ICONS.key = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden><circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M17 6l3 3M15 8l2 2"/></svg>`;
 
+  EXTRA_ICONS.hash = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/></svg>`;
+
   /** Replaces the demo navigation with the live one for these books. */
   ZL.buildNav = () => {
     Object.assign(ICONS, EXTRA_ICONS); // app.html's icon set is defined after this file loads
@@ -539,7 +541,7 @@
       { label: "", items: [["dashboard", "Dashboard", "dash"], ["transactions", P ? "Money in & out" : "Transactions", "swap"]] },
       { label: "Reports", items: [["pl", P ? "Income & spending" : "Profit & loss", "chart"], ["bs", P ? "Net worth" : "Balance sheet", "sheet"], ["tb", "Trial balance", "scale"]] },
       { label: "Accounting", items: [["coa", P ? "Accounts & categories" : "Chart of accounts", "book"], ["journals", "Journals", "list"], ["gl", "General ledger", "ledger"], ["bankrec", P ? "Match bank statement" : "Bank reconciliation", "bank"], ["periods", "Fiscal periods", "calendar"]] },
-      { label: P ? "Settings" : "Company", items: [["users", P ? "Sharing" : "Users & roles", "users"], ["audit", "Audit trail", "shield"], ["templates", P ? "Receipt template" : "Voucher template", "doc"], ["settings", "Settings", "gear"]] },
+      { label: P ? "Settings" : "Company", items: [["users", P ? "Sharing" : "Users & roles", "users"], ["audit", "Audit trail", "shield"], ["templates", P ? "Receipt template" : "Voucher template", "doc"], ["numbering", "Numbering", "hash"], ["settings", "Settings", "gear"]] },
       { label: "Zycount", items: [["admin", "Admin console", "key"]] },
     ];
     NAV.length = 0;
