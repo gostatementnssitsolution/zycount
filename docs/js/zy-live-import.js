@@ -224,6 +224,31 @@
     parseRows,
   };
 
+  /** The text of a PDF as lines, top to bottom (first 10 pages). Empty for a scanned image. */
+  ZL.pdfText = async (blob) => {
+    await pdfReady();
+    let doc;
+    try {
+      doc = await window.pdfjsLib.getDocument({ data: new Uint8Array(await blob.arrayBuffer()), isEvalSupported: false }).promise;
+    } catch (e) {
+      throw new ZL.ZLError("VALIDATION", e && e.name === "PasswordException" ? "This PDF is locked with a password." : "That PDF couldn't be opened.");
+    }
+    const out = [];
+    for (let p = 1; p <= Math.min(doc.numPages, 10); p++) {
+      const tc = await (await doc.getPage(p)).getTextContent();
+      const rows = new Map();
+      tc.items.forEach((it) => {
+        const s = String(it.str || "").trim();
+        if (!s) return;
+        const y = Math.round(it.transform[5] / 3);
+        if (!rows.has(y)) rows.set(y, []);
+        rows.get(y).push({ x: it.transform[4], s });
+      });
+      [...rows.keys()].sort((a, b) => b - a).forEach((y) => out.push(rows.get(y).sort((a, b) => a.x - b.x).map((w) => w.s).join(" ")));
+    }
+    return out;
+  };
+
   // ── Categories ────────────────────────────────────────────────────────────
   const STOP = new Set(("IBG DUITNOW FPX TRANSFER TRF TFR TRSF FUND FUNDS PAYMENT PYMT PMT POS PURCHASE PURCHASES DEBIT CREDIT CARD SALE SALES " +
     "MYDEBIT VISA MASTERCARD MASTER INSTANT INTERBANK GIRO FROM ACCOUNT ACC ONLINE MBB MAYBANK CIMB RHB PBB PUBLIC HLB HONG LEONG AMB AMBANK " +
