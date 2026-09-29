@@ -44,7 +44,8 @@
         <option value="custom"${p.preset === "custom" ? " selected" : ""}>Custom dates</option></select></label>
       <label class="field"><input id="zl-rfrom" type="date" value="${E(p.from)}" aria-label="From"></label>
       <span class="hint">to</span>
-      <label class="field"><input id="zl-rto" type="date" value="${E(p.to)}" aria-label="To"></label>`;
+      <label class="field"><input id="zl-rto" type="date" value="${E(p.to)}" aria-label="To"></label>
+      ${ZL.applyButton("zl-rapply")}`;
   }
   function wireRange(root, route, p, today) {
     const ps = presets(today);
@@ -55,12 +56,14 @@
     });
     const custom = () => {
       const from = root.querySelector("#zl-rfrom").value, to = root.querySelector("#zl-rto").value;
-      if (!from || !to) return;
+      if (!from || !to) { ZL.toast("Choose both dates.", "warn"); return; }
       if (from > to) { ZL.toast("The start date is after the end date.", "warn"); return; }
       ZL.open(route, Object.assign({}, p, { preset: "custom", from, to }));
     };
-    root.querySelector("#zl-rfrom").addEventListener("change", custom);
-    root.querySelector("#zl-rto").addEventListener("change", custom);
+    const markCustom = () => { root.querySelector("#zl-rp").value = "custom"; };
+    root.querySelector("#zl-rfrom").addEventListener("input", markCustom);
+    root.querySelector("#zl-rto").addEventListener("input", markCustom);
+    ZL.wireApply(root, ["zl-rfrom", "zl-rto"], "zl-rapply", custom);
   }
   function resolveRange(p, today, fallback) {
     const ps = presets(today);
@@ -312,6 +315,7 @@
           btn("zl-rprint", "Print", "ghost") + exportButton()) + `
         <div class="toolbar">
           <label class="field"><span class="hint">As at</span><input id="zl-basat" type="date" value="${E(asAt)}" aria-label="As at"></label>
+          ${ZL.applyButton("zl-bapply")}
           <label class="field"><span class="hint">Compare</span><select id="zl-bcmp" aria-label="Compare with">
             <option value="lm"${compare === "lm" ? " selected" : ""}>End of last month</option>
             <option value="ly"${compare === "ly" ? " selected" : ""}>End of last year</option>
@@ -332,7 +336,11 @@
     },
     after(root, ctx) {
       const p = ctx.params;
-      root.querySelector("#zl-basat").addEventListener("change", (ev) => { if (ev.target.value) ZL.open("bs", Object.assign({}, p, { asAt: ev.target.value })); });
+      ZL.wireApply(root, ["zl-basat"], "zl-bapply", () => {
+        const asAt = root.querySelector("#zl-basat").value;
+        if (!asAt) { ZL.toast("Choose a date.", "warn"); return; }
+        ZL.open("bs", Object.assign({}, p, { asAt }));
+      });
       root.querySelector("#zl-bcmp").addEventListener("change", (ev) => ZL.open("bs", Object.assign({}, p, { compare: ev.target.value })));
       wireCommon(root, "bs", { to: p.asAt, from: ZL.yearStart(p.asAt) }, ctx.today, ZL.modules.bs._csv);
     },

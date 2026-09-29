@@ -127,6 +127,22 @@
     return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
   };
 
+  /** Date filters change nothing until Apply (or Enter); the button lights up once a date is edited. */
+  ZL.applyButton = (id) => `<button type="button" class="zl-btn sm zl-apply" id="${id}">Apply</button>`;
+  ZL.wireApply = (root, inputIds, buttonId, apply) => {
+    const inputs = inputIds.map((i) => root.querySelector("#" + i)).filter(Boolean);
+    const b = root.querySelector("#" + buttonId);
+    if (!b) return;
+    const start = inputs.map((i) => i.value);
+    const sync = () => b.classList.toggle("primary", inputs.some((i, k) => i.value !== start[k]));
+    inputs.forEach((i) => {
+      i.addEventListener("input", sync);
+      i.addEventListener("change", sync);
+      i.addEventListener("keydown", (ev) => { if (ev.key === "Enter") { ev.preventDefault(); apply(); } });
+    });
+    b.addEventListener("click", apply);
+  };
+
   // ── data access ────────────────────────────────────────────────────────
   /** Calls a database function; throws ZLError { code, message } on failure. */
   ZL.rpc = async (name, args = {}) => {
@@ -511,6 +527,10 @@
   EXTRA_ICONS.swap = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden><path d="M7 7h13l-4-4M17 17H4l4 4"/></svg>`;
   EXTRA_ICONS.gear = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>`;
 
+  EXTRA_ICONS.bank = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden><path d="M3 10h18M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 21h18M12 3l9 5H3z"/></svg>`;
+  EXTRA_ICONS.doc = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg>`;
+  EXTRA_ICONS.key = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden><circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M17 6l3 3M15 8l2 2"/></svg>`;
+
   /** Replaces the demo navigation with the live one for these books. */
   ZL.buildNav = () => {
     Object.assign(ICONS, EXTRA_ICONS); // app.html's icon set is defined after this file loads
@@ -518,12 +538,13 @@
     const groups = [
       { label: "", items: [["dashboard", "Dashboard", "dash"], ["transactions", P ? "Money in & out" : "Transactions", "swap"]] },
       { label: "Reports", items: [["pl", P ? "Income & spending" : "Profit & loss", "chart"], ["bs", P ? "Net worth" : "Balance sheet", "sheet"], ["tb", "Trial balance", "scale"]] },
-      { label: "Accounting", items: [["coa", P ? "Accounts & categories" : "Chart of accounts", "book"], ["journals", "Journals", "list"], ["gl", "General ledger", "ledger"], ["periods", "Fiscal periods", "calendar"]] },
-      { label: P ? "Settings" : "Company", items: [["users", P ? "Sharing" : "Users & roles", "users"], ["audit", "Audit trail", "shield"], ["settings", "Settings", "gear"]] },
+      { label: "Accounting", items: [["coa", P ? "Accounts & categories" : "Chart of accounts", "book"], ["journals", "Journals", "list"], ["gl", "General ledger", "ledger"], ["bankrec", P ? "Match bank statement" : "Bank reconciliation", "bank"], ["periods", "Fiscal periods", "calendar"]] },
+      { label: P ? "Settings" : "Company", items: [["users", P ? "Sharing" : "Users & roles", "users"], ["audit", "Audit trail", "shield"], ["templates", P ? "Receipt template" : "Voucher template", "doc"], ["settings", "Settings", "gear"]] },
+      { label: "Zycount", items: [["admin", "Admin console", "key"]] },
     ];
     NAV.length = 0;
     groups.forEach((g) => {
-      const items = g.items.filter(([id]) => { const m = ZL.modules[id]; return m && (!m.perm || ZL.can(m.perm)); });
+      const items = g.items.filter(([id]) => { const m = ZL.modules[id]; return m && (m.platform ? ZL.platformAdmin : !m.perm || ZL.can(m.perm)); });
       if (items.length) NAV.push({ label: g.label, items });
     });
   };
@@ -975,7 +996,7 @@
     }
 
     try {
-      ZL.companies = await ZL.rpc("my_companies");
+      [ZL.companies, ZL.platformAdmin] = await Promise.all([ZL.rpc("my_companies"), ZL.rpc("is_platform_admin").catch(() => false)]);
     } catch (e) {
       page.innerHTML = `<section class="card" style="padding:20px 24px">${ZL.errorBox(e)}</section>`;
       return;

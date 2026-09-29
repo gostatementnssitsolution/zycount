@@ -82,6 +82,8 @@
       }).join("")}</tbody></table></div>`;
   }
 
+  const METHODS = ["Bank transfer", "DuitNow / FPX", "Cheque", "Cash", "Card", "Online banking", "Other"].map((m) => ({ value: m, label: m }));
+
   /** Money in / money out / transfer. Resolves with the posting result, or null. */
   ZL.quick = async (kind, preset = {}) => {
     if (!(ZL.can("journal.create") && ZL.can("journal.post"))) {
@@ -109,8 +111,10 @@
         { name: "money", label: "Paid from", type: "select", half: true, value: preset.money || preferred, options: money.map((a) => ({ value: a.id, label: label(a) })) },
         { name: "other", label: P ? "What for" : "Category", type: "select", required: true, value: "",
           options: [{ value: "", label: "Choose…" }].concat(options(others, ["EXPENSE", "COST_OF_SALES", "ASSET", "LIABILITY", "EQUITY"])) },
-        { name: "description", label: P ? "Description" : "Payee and description", placeholder: P ? "e.g. Groceries at Lotus's" : "e.g. TNB — electricity for September" },
-        { name: "reference", label: "Receipt or reference no.", placeholder: "Optional" },
+        ...(P ? [] : [{ name: "party", label: "Paid to", placeholder: "e.g. Tenaga Nasional Berhad", half: true, value: preset.party || "" },
+          { name: "method", label: "Paid by", type: "select", half: true, value: preset.method || "Bank transfer", options: METHODS }]),
+        { name: "description", label: P ? "Description" : "What it's for", placeholder: P ? "e.g. Groceries at Lotus's" : "e.g. Electricity for September", value: preset.description || "" },
+        { name: "reference", label: P ? "Receipt or reference no." : "Their invoice or reference no.", placeholder: "Optional", value: preset.reference || "" },
       ];
     } else if (kind === "IN") {
       title = P ? "Money in" : "Record money received";
@@ -123,8 +127,10 @@
           options: [{ value: "", label: "Choose…" }].concat(options(others, ["REVENUE", "LIABILITY", "EQUITY", "ASSET"])) },
         ...(sst ? [{ name: "tax", label: "SST included in the amount", type: "select", value: "0",
           options: [{ value: "0", label: "No SST" }, { value: "8", label: "Service tax 8%" }, { value: "6", label: "Service tax 6%" }, { value: "10", label: "Sales tax 10%" }, { value: "5", label: "Sales tax 5%" }] }] : []),
-        { name: "description", label: P ? "Description" : "Customer and description", placeholder: P ? "e.g. September salary" : "e.g. Payment from Syarikat ABC for invoice 1024" },
-        { name: "reference", label: "Reference no.", placeholder: "Optional" },
+        ...(P ? [] : [{ name: "party", label: "Received from", placeholder: "e.g. Syarikat ABC Sdn Bhd", half: true, value: preset.party || "" },
+          { name: "method", label: "Received by", type: "select", half: true, value: preset.method || "Bank transfer", options: METHODS }]),
+        { name: "description", label: P ? "Description" : "What it's for", placeholder: P ? "e.g. September salary" : "e.g. Payment for invoice 1024", value: preset.description || "" },
+        { name: "reference", label: "Reference no.", placeholder: "Optional", value: preset.reference || "" },
       ];
     } else {
       const all = accounts.filter((a) => a.type === "ASSET" || a.type === "LIABILITY");
@@ -174,10 +180,10 @@
         const r = await ZL.rpc("record_transaction", {
           p_company: cid(), p_kind: kind, p_date: v.date, p_amount: v.amount, p_money_account: v.money,
           p_other_account: v.other, p_description: v.description || null, p_reference: v.reference || null,
-          p_tax_rate: kind === "IN" ? Number(v.tax || 0) : 0,
+          p_tax_rate: kind === "IN" ? Number(v.tax || 0) : 0, p_party: v.party || null, p_method: v.method || null,
         });
         try { if (money.some((a) => a.id === v.money)) localStorage.setItem(prefKey, v.money); } catch (_) { /* ignore */ }
-        ZL.toast(`Recorded and posted as ${r.reference}.`);
+        ZL.toast(r.doc_no ? `Recorded as ${r.doc_no} and posted (${r.reference}).` : `Recorded and posted as ${r.reference}.`);
         return r;
       },
     }).then((r) => { if (r) ZL.refresh(); return r; });
@@ -300,10 +306,12 @@
       const size = p.limit || 100, want = p.kind || "", term = String(p.q || "").replace(/[,()*%\\:"']/g, " ").trim().slice(0, 80);
       const [accounts, page, opening, monthRows] = await Promise.all([
         ZL.accounts(),
-        ZL.page("journal_entries", "id,reference,date,description,memo,status,total_debit,created_at,reversal_of_id,txn_kind,journal_lines(account_id,debit,credit)",
+        ZL.page("journal_entries", "id,reference,date,description,memo,status,total_debit,created_at,reversal_of_id,txn_kind,doc_no,party,journal_lines(account_id,debit,credit)",
           (q) => {
             q = q.eq("company_id", cid()).eq("source", "BANK");
-            if (term) q = q.or(`description.ilike.*${term}*,reference.ilike.*${term}*,memo.ilike.*${term}*`);
+            if (term) q = q.or(`description.ilike.*${term}*,reference.ilike.*${term}*,memo.ilike.*${term}*,doc_no.ilike.*${term}*,party.ilike.*${term}*`);
+            if (p.from) q = q.gte("date", p.from);
+            if (p.to) q = q.lte("date", p.to);
             return q.order("date", { ascending: false }).order("created_at", { ascending: false });
           }, 0, size),
         ZL.count("journal_entries", (q) => q.eq("company_id", cid()).eq("source", "OPENING_BALANCE").eq("status", "POSTED").is("reversal_of_id", null)),
@@ -338,24 +346,29 @@
           <span>Net<b class="num">${M(inM - outM, { symbol: true })}</b></span></div>
         <div class="toolbar">
           <label class="field in"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>
-            <input id="zl-tq" type="search" value="${E(p.q || "")}" placeholder="Search description or reference" aria-label="Search transactions"></label>
+            <input id="zl-tq" type="search" value="${E(p.q || "")}" placeholder="${P ? "Search description or reference" : "Search PV/OR no., payee or description"}" aria-label="Search transactions"></label>
           <div class="seg" role="group" aria-label="Kind">${seg}</div>
+          <label class="field"><span class="hint">From</span><input id="zl-tfrom" type="date" value="${E(p.from || "")}" aria-label="From date"></label>
+          <label class="field"><span class="hint">To</span><input id="zl-tto" type="date" value="${E(p.to || "")}" aria-label="To date"></label>
+          ${ZL.applyButton("zl-tapply")}
+          ${p.from || p.to ? '<button type="button" class="zl-btn ghost sm" id="zl-tclear">Clear dates</button>' : ""}
           <span class="count"><b>${rows.length}</b>${want ? "" : ` of ${page.count}`}</span>
         </div>
         ${rows.length ? `<section class="card"><div class="tablewrap"><table>
-          <thead><tr><th>Date</th><th>Description</th><th>${P ? "Account" : "Bank / cash"}</th><th>${P ? "Category" : "Category"}</th><th class="r">Amount</th><th>Journal</th></tr></thead>
+          <thead><tr><th>Date</th><th>Description</th><th>${P ? "Account" : "Bank / cash"}</th><th>${P ? "Category" : "Category"}</th><th class="r">Amount</th><th>${P ? "Journal" : "Voucher"}</th></tr></thead>
           <tbody>${rows.map((r) => `<tr class="click" data-open-journal="${r.id}">
             <td class="nil" style="white-space:nowrap">${ZL.date(r.date)}</td>
-            <td><div style="font-weight:500">${E(r.description || "—")}</div>${r.memo ? `<div class="hint">${E(r.memo)}</div>` : ""}</td>
+            <td><div style="font-weight:500">${E(r.description || "—")}</div>${r.party || r.memo ? `<div class="hint">${E([r.party, r.memo].filter(Boolean).join(" · "))}</div>` : ""}</td>
             <td>${r.c.kind === "TRANSFER" ? `${name(r.c.money)} → ${name(r.c.other)}` : name(r.c.money)}</td>
             <td class="nil">${r.c.kind === "TRANSFER" ? "Transfer" : r.c.kind === "REVERSAL" ? "Reversal" : name(r.c.other)}</td>
             <td class="r" style="white-space:nowrap${counts(r) ? "" : ";text-decoration:line-through;opacity:.6"}" title="${counts(r) ? "" : "Cancelled by a reversal; not counted"}">${amount(r)}</td>
-            <td style="white-space:nowrap"><span class="zl-ref">${E(r.reference || "")}</span>${r.status === "REVERSED" ? ' <span class="chip warn">Reversed</span>' : ""}</td></tr>`).join("")}</tbody>
+            <td style="white-space:nowrap">${r.doc_no ? `<button type="button" class="zl-ref" data-voucher="${r.id}" title="Open, print or save as PDF">${E(r.doc_no)}</button><div class="hint">${E(r.reference || "")}</div>`
+              : `<span class="zl-ref">${E(r.reference || "")}</span>`}${r.status === "REVERSED" ? ' <span class="chip warn">Reversed</span>' : ""}</td></tr>`).join("")}</tbody>
         </table></div>
         ${page.count > page.rows.length ? `<div class="proofrow"><span>Showing the latest ${page.rows.length} of ${page.count}.</span><span class="figs"><button type="button" class="zl-btn sm" id="zl-tmore">Load 100 more</button></span></div>` : ""}
         </section>`
-        : ZL.empty(term || want ? "Nothing matches" : "No transactions yet",
-          term || want ? "Try another search or filter." : `Record ${P ? "your salary, a bill or a transfer" : "a payment or money received"} and it appears here with its journal reference.`)}`;
+        : ZL.empty(term || want || p.from || p.to ? "Nothing matches" : "No transactions yet",
+          term || want || p.from || p.to ? "Try another search, filter or date range." : `Record ${P ? "your salary, a bill or a transfer" : "a payment or money received"} and it appears here with its journal reference.`)}`;
     },
     after(root, ctx) {
       const p = ctx.params;
@@ -368,6 +381,14 @@
       if (p.focus === "q") { q.focus(); q.setSelectionRange(q.value.length, q.value.length); }
       const more = root.querySelector("#zl-tmore");
       if (more) more.addEventListener("click", () => ZL.open("transactions", Object.assign({}, p, { limit: (p.limit || 100) + 100, focus: null })));
+      ZL.wireApply(root, ["zl-tfrom", "zl-tto"], "zl-tapply", () => {
+        const from = root.querySelector("#zl-tfrom").value || null, to = root.querySelector("#zl-tto").value || null;
+        if (from && to && from > to) { ZL.toast("The start date is after the end date.", "warn"); return; }
+        ZL.open("transactions", Object.assign({}, p, { from, to, focus: null }));
+      });
+      const tclear = root.querySelector("#zl-tclear");
+      if (tclear) tclear.addEventListener("click", () => ZL.open("transactions", Object.assign({}, p, { from: null, to: null, focus: null })));
+      root.querySelectorAll("[data-voucher]").forEach((b) => b.addEventListener("click", (ev) => { ev.stopPropagation(); ZL.voucher(b.dataset.voucher); }));
       ZL.wireJournalLinks(root);
     },
   });

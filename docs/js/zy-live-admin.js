@@ -39,6 +39,7 @@
     "period.generate": "Periods generated", "period.close": "Period closed", "period.reopen": "Period reopened",
     "user.create": "Member added", "user.edit": "Role changed", "user.delete": "Member removed",
     "user.invite": "Invite created", "user.invite_cancel": "Invite cancelled", "user.join": "Joined by invite",
+    "admin.join": "Zycount admin joined", "bank.import": "Statement uploaded", "bank.delete": "Statement deleted",
   };
   const tone = (a) => (/reverse|delete|reopen|archive/.test(a) ? "warn" : /post|close/.test(a) ? "ok" : "");
 
@@ -335,6 +336,82 @@
       });
       root.querySelectorAll("[data-switch]").forEach((b) => b.addEventListener("click", () => ZL.switchCompany(b.dataset.switch)));
       root.querySelector("#zl-newbooks").addEventListener("click", () => ZL.createCompany());
+    },
+  });
+
+  // ══ Admin console (Zycount platform administrators only) ══════════════════
+  ZL.register("admin", {
+    title: "Admin console",
+    platform: true,
+    async render(ctx) {
+      if (!ZL.platformAdmin) return ZL.noAccess("Admin console", "platform administrator");
+      const p = ctx.params;
+      const tab = p.tab || "books";
+      const [ov, books, users] = await Promise.all([ZL.rpc("admin_overview"), ZL.rpc("admin_companies"), ZL.rpc("admin_users")]);
+      const term = String(p.q || "").trim().toLowerCase();
+      const hit = (...xs) => !term || xs.some((x) => String(x || "").toLowerCase().includes(term));
+      const b = books.filter((c) => hit(c.name, c.owner_email, c.kind));
+      const u = users.filter((x) => hit(x.email, x.full_name));
+      const kpi = (label, v, sub) => `<div class="kpi"><div class="klbl">${label}</div><div class="kval num">${Number(v || 0).toLocaleString("en-MY")}</div><div class="hint">${sub}</div></div>`;
+      const seg = [["books", `Books (${books.length})`], ["users", `Users (${users.length})`]].map(([v, l]) =>
+        `<button type="button" data-atab="${v}" aria-pressed="${tab === v}">${l}</button>`).join("");
+      return ZL.header("Admin console", "Every user and set of books on Zycount. Only platform administrators see this page.") + `
+        <div class="kpi-head zl-kpis">
+          ${kpi("Users", ov.users, `${ov.signups_30d} joined in 30 days`)}
+          ${kpi("Business books", ov.business, "Companies")}
+          ${kpi("Personal books", ov.personal, "Households")}
+          ${kpi("Posted entries", ov.posted, `${ov.posted_30d} in 30 days`)}
+        </div>
+        <div class="toolbar">
+          <div class="seg" role="group" aria-label="Show">${seg}</div>
+          <label class="field in"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>
+            <input id="zl-aq" type="search" value="${E(p.q || "")}" placeholder="${tab === "books" ? "Name or owner email" : "Email or name"}" aria-label="Search"></label>
+        </div>
+        <section class="card"><div class="tablewrap"><table>
+        ${tab === "books" ? `<thead><tr><th>Books</th><th>Type</th><th>Owner</th><th class="r">People</th><th class="r">Posted</th><th>Last entry</th><th>Created</th><th></th></tr></thead>
+          <tbody>${b.map((c) => `<tr>
+            <td style="font-weight:500">${E(c.name)}</td>
+            <td><span class="chip">${c.kind === "PERSONAL" ? "Personal" : "Business"}</span></td>
+            <td class="nil">${E(c.owner_email || "—")}</td>
+            <td class="r num">${c.members}</td><td class="r num">${c.posted}</td>
+            <td class="nil">${c.last_entry ? ZL.date(c.last_entry) : "—"}</td>
+            <td class="nil" style="white-space:nowrap">${ZL.date(c.created_at)}</td>
+            <td class="r"><button type="button" class="zl-btn sm${c.i_am_member ? "" : " ghost"}" data-aopen="${c.id}" data-member="${c.i_am_member ? 1 : 0}" data-name="${E(c.name)}">${c.i_am_member ? "Open" : "Open for support"}</button></td></tr>`).join("")
+            || `<tr><td colspan="8" class="nil">Nothing matches.</td></tr>`}</tbody>`
+        : `<thead><tr><th>Person</th><th>Signed up</th><th>Last sign-in</th><th class="r">Books</th><th></th></tr></thead>
+          <tbody>${u.map((x) => `<tr>
+            <td><div style="font-weight:500">${E(x.full_name || x.email)}</div>${x.full_name ? `<div class="hint">${E(x.email)}</div>` : ""}</td>
+            <td class="nil" style="white-space:nowrap">${ZL.date(x.created_at)}</td>
+            <td class="nil" style="white-space:nowrap">${x.last_sign_in_at ? ZL.dateTime(x.last_sign_in_at) : "Never"}</td>
+            <td class="r num">${x.books}</td>
+            <td>${x.is_admin ? '<span class="chip ok">Platform admin</span>' : ""}</td></tr>`).join("")
+            || `<tr><td colspan="5" class="nil">Nothing matches.</td></tr>`}</tbody>`}
+        </table></div>
+        <div class="proofrow"><span>Opening someone's books for support adds you as an owner there and writes it to that company's audit trail.</span></div></section>`;
+    },
+    after(root, ctx) {
+      const p = ctx.params;
+      root.querySelectorAll("[data-atab]").forEach((b) => b.addEventListener("click", () => ZL.open("admin", Object.assign({}, p, { tab: b.dataset.atab }))));
+      const q = root.querySelector("#zl-aq");
+      if (q) {
+        q.addEventListener("input", ZL.debounce(() => ZL.open("admin", Object.assign({}, p, { q: q.value, focus: "q" })), 300));
+        if (p.focus === "q") { q.focus(); q.setSelectionRange(q.value.length, q.value.length); }
+      }
+      root.querySelectorAll("[data-aopen]").forEach((b) => b.addEventListener("click", async () => {
+        const id = b.dataset.aopen;
+        if (b.dataset.member !== "1") {
+          const ok = await ZL.confirm({ title: `Open ${E(b.dataset.name)}?`,
+            message: "You'll be added to these books as an owner so you can check and correct them. The company's audit trail records that a Zycount administrator joined.",
+            confirmLabel: "Open for support" });
+          if (!ok) return;
+          try {
+            await ZL.rpc("admin_join_company", { p_company: id });
+            ZL.companies = await ZL.rpc("my_companies");
+          } catch (e) { ZL.toast(ZL.errorText(e), "bad"); return; }
+        }
+        ZL.switchCompany(id);
+        go("dashboard");
+      }));
     },
   });
 })();

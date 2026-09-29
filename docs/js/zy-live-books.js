@@ -454,6 +454,7 @@
           <div class="seg" role="group" aria-label="Status">${seg}</div>
           <label class="field"><span class="hint">From</span><input id="zl-jfrom" type="date" value="${E(from)}" aria-label="From date"></label>
           <label class="field"><span class="hint">To</span><input id="zl-jto" type="date" value="${E(to)}" aria-label="To date"></label>
+          ${ZL.applyButton("zl-japply")}
           ${filtered ? btn("zl-jclear", "Clear", "ghost sm") : ""}
           ${ZL.can("report.export") && rows.length ? btn("zl-jcsv", "Export CSV", "ghost") : ""}
           <span class="count"><b>${rows.length}</b> of ${count}</span>
@@ -486,8 +487,11 @@
       const q = root.querySelector("#zl-jq");
       q.addEventListener("input", ZL.debounce(() => reopen({ q: q.value, focus: "q" }), 400));
       if (p.focus === "q") { q.focus(); q.setSelectionRange(q.value.length, q.value.length); }
-      root.querySelector("#zl-jfrom").addEventListener("change", (ev) => reopen({ from: ev.target.value }));
-      root.querySelector("#zl-jto").addEventListener("change", (ev) => reopen({ to: ev.target.value }));
+      ZL.wireApply(root, ["zl-jfrom", "zl-jto"], "zl-japply", () => {
+        const from = root.querySelector("#zl-jfrom").value, to = root.querySelector("#zl-jto").value;
+        if (from && to && from > to) { ZL.toast("The start date is after the end date.", "warn"); return; }
+        reopen({ from, to });
+      });
       const clear = root.querySelector("#zl-jclear");
       if (clear) clear.addEventListener("click", () => ZL.open("journals", {}));
       const more = root.querySelector("#zl-jmore");
@@ -804,6 +808,7 @@
       : e.status === "DRAFT" ? `<div class="zl-banner">This is a draft — it isn't in the ledger. Your role can't edit drafts.</div>` : "";
     return ZL.header(title, e.description || "No description",
         `${btn("zl-jback", "← Journals", "ghost")}
+          ${e.doc_no ? btn("zl-jvoucher", e.doc_no, "primary") : ""}
           ${btn("zl-jprint", "Print")}
           ${ZL.can("journal.create") ? btn("zl-jdup", "Duplicate") : ""}
           ${canReverse ? btn("zl-jrev", "Reverse", "danger") : ""}`) +
@@ -863,6 +868,8 @@
     const dup = root.querySelector("#zl-jdup");
     if (dup) dup.addEventListener("click", () => ZL.open("journal", { copyFrom: id }));
     root.querySelector("#zl-jprint").addEventListener("click", () => window.print());
+    const voucher = root.querySelector("#zl-jvoucher");
+    if (voucher) voucher.addEventListener("click", () => ZL.voucher(id));
     root.querySelector("#zl-jback").addEventListener("click", () => go("journals"));
   }
 
@@ -892,6 +899,7 @@
             <select id="zl-glacc" aria-label="Account">${accountOptions(accounts, account.id).replace('<option value="">Choose account…</option>', "")}</select></label>
           <label class="field"><span class="hint">From</span><input id="zl-glfrom" type="date" value="${E(from)}" aria-label="From date"></label>
           <label class="field"><span class="hint">To</span><input id="zl-glto" type="date" value="${E(to)}" aria-label="To date"></label>
+          ${ZL.applyButton("zl-glapply")}
           <span class="count"><b>${lines.length}</b> line${lines.length === 1 ? "" : "s"}</span>
         </div>
         <section class="card"><div class="tablewrap"><table>
@@ -921,8 +929,11 @@
       const p = ctx.params;
       const reopen = (patch) => ZL.open("gl", Object.assign({}, p, patch));
       root.querySelector("#zl-glacc").addEventListener("change", (ev) => reopen({ account: ev.target.value }));
-      root.querySelector("#zl-glfrom").addEventListener("change", (ev) => reopen({ from: ev.target.value || null }));
-      root.querySelector("#zl-glto").addEventListener("change", (ev) => reopen({ to: ev.target.value || null }));
+      ZL.wireApply(root, ["zl-glfrom", "zl-glto"], "zl-glapply", () => {
+        const from = root.querySelector("#zl-glfrom").value || null, to = root.querySelector("#zl-glto").value || null;
+        if (from && to && from > to) { ZL.toast("The start date is after the end date.", "warn"); return; }
+        reopen({ from, to });
+      });
       wireJournalLinks(root);
       const csv = root.querySelector("#zl-glcsv");
       if (csv) csv.addEventListener("click", async () => {
