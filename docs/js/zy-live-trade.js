@@ -238,7 +238,7 @@
     let sel = () => "";
     const rows = lines.length ? lines.map((l) => Object.assign({}, l)) : [];
     const canPost = ZL.can("journal.post");
-    const numFields = ZL.numbering.fields(numRows, seriesKind(type), d.money_account_id);
+    const numFields = ZL.numbering.fields(numRows, seriesKind(type), d.money_account_id, { series: d.draft_series_id, no: d.draft_doc_no });
     const f = (n, label, control, cls = "") => `<label class="zl-field ${cls}"><span>${label}</span>${control}</label>`;
     const partyOpts = `<option value="">${t.money ? "Cash customer (walk-in)" : `Choose ${S.who}…`}</option>` +
       people.filter((p) => p.is_active || p.id === d.contact_id).map((p) => opt(p.id, `${p.name} · ${p.code}`, d.contact_id)).join("");
@@ -289,7 +289,8 @@
           account_id: l.account_id || null, tax_code_id: l.tax_code_id || null };
       });
       if (!plines.length) throw bad("Add at least one line.");
-      const num = doPost && numCtl ? numCtl.read() : {};
+      let num = {};
+      try { num = numCtl ? numCtl.read() : {}; } catch (e) { if (doPost) throw e; } // a draft may wait for its number
       return ZL.rpc("save_trade_doc", { p_company: cid(), p_id: doc ? doc.id : null, p_doc: pdoc, p_lines: plines, p_post: doPost,
         p_series: num.p_series || null, p_doc_no: num.p_doc_no || null, p_allocations: null });
     };
@@ -404,7 +405,8 @@
     if (!rows.length) { rows.push(blank()); rows.push(blank()); }
     draw();
     numCtl = numFields.length ? ZL.numbering.wire(root, numRows, seriesKind(type), { dateInput: root.querySelector('[name="date"]'),
-      moneyInput: root.querySelector('[name="money"]'), money: () => sel("money"), autoHint: "Given when you post." }) : null;
+      moneyInput: root.querySelector('[name="money"]'), money: () => sel("money"), autoHint: "Given when you post.",
+      initial: d.draft_doc_no || null, series: d.draft_series_id || null }) : null;
     if (numCtl && !canPost) root.querySelectorAll('[name="series"],[name="doc_no"]').forEach((el) => { el.closest("label").hidden = true; });
     return null;
   };

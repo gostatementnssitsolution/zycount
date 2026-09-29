@@ -22,7 +22,7 @@
   const PURCHASE_KINDS = ["PURCHASE_ORDER", "BILL", "CASH_PURCHASE", "SUPPLIER_DN", "SUPPLIER_CN"];
   const kindsFor = () => ["PAYMENT", "RECEIPT", "JOURNAL"].concat(ZL.isPersonal() ? [] : SALES_KINDS.concat(PURCHASE_KINDS));
   const moneyKind = (k) => k === "PAYMENT" || k === "RECEIPT";
-  const MODE_LABEL = { AUTO: "Automatic", AUTO_EDITABLE: "Automatic, can be changed", MANUAL: "Keyed by hand" };
+  const MODE_LABEL = { AUTO: "Automatic only", AUTO_EDITABLE: "Automatic, or key your own", MANUAL: "Keyed by hand" };
   const RESET_LABEL = { YEARLY: "Every year", MONTHLY: "Every month", NEVER: "Never" };
   const isMoney = (a) => a.is_postable && a.is_active && (a.is_cash || (ZL.isPersonal() && a.type === "LIABILITY" && a.sub_type === "CURRENT_LIABILITY"));
 
@@ -41,31 +41,34 @@
     /** Series with the next numbers for a date. Always fresh: numbers move. */
     load: (date) => ZL.rpc("document_series_overview", { p_company: cid(), p_date: date || ZL.today() }),
     /** The series the database would choose: linked to the account, else the default. */
-    pick(rows, kind, moneyAccount) {
+    pick(rows, kind, moneyAccount, seriesId) {
       const live = rows.filter((r) => r.kind === kind && r.is_active);
-      return live.find((r) => moneyAccount && r.money_account_id === moneyAccount) || live.find((r) => r.is_default) || live[0] || null;
+      return live.find((r) => seriesId && r.id === seriesId) || live.find((r) => moneyAccount && r.money_account_id === moneyAccount)
+        || live.find((r) => r.is_default) || live[0] || null;
     },
-    /** Form fields (for ZL.form) — a series choice and the number. Empty when numbering is off. */
-    fields(rows, kind, moneyAccount) {
+    /** Form fields (for ZL.form) — a series choice and the number. Empty when numbering is off.
+     *  preset: { series, no } — a series and number already chosen (e.g. on a saved draft). */
+    fields(rows, kind, moneyAccount, preset = {}) {
       const live = rows.filter((r) => r.kind === kind && r.is_active);
       if (!live.length) return [];
-      const s = this.pick(rows, kind, moneyAccount);
+      const s = this.pick(rows, kind, moneyAccount, preset.series);
       return [
         { name: "series", label: "Numbering", type: "select", half: true, value: s.id,
           options: live.map((r) => ({ value: r.id, label: `${r.name} (${r.code})` })) },
-        { name: "doc_no", label: `${s.code} no.`, half: true, value: s.mode === "MANUAL" ? "" : s.next_preview },
+        { name: "doc_no", label: `${s.code} no.`, half: true, value: preset.no || (s.mode === "MANUAL" ? "" : s.next_preview) },
       ];
     },
     /**
      * Keeps the number field in step with the series, bank account and date.
-     * opts: { money?: () => accountId, moneyInput?, dateInput?, autoHint? }
+     * opts: { money?: () => accountId, moneyInput?, dateInput?, autoHint?, initial?: number keyed earlier, series?: chosen series id }
      * Returns { read() } → { p_series, p_doc_no } (throws when a manual number is missing).
      */
     wire(root, rows, kind, opts = {}) {
       const sel = root.querySelector('[name="series"]');
       const inp = root.querySelector('[name="doc_no"]');
       if (!sel || !inp) return { read: () => ({}) };
-      let list = rows, typed = false, chosen = false;
+      let list = rows, typed = !!opts.initial, chosen = !!opts.series;
+      if (opts.initial) inp.value = opts.initial;
       const label = inp.closest("label");
       let hint = label.querySelector("small");
       if (!hint) { hint = document.createElement("small"); label.appendChild(hint); }
@@ -80,7 +83,7 @@
         inp.readOnly = s.mode === "AUTO";
         inp.classList.toggle("zl-auto", s.mode === "AUTO");
         if (s.mode === "AUTO") { inp.value = s.next_preview; hint.textContent = opts.autoHint || "Given automatically when you save."; }
-        else if (s.mode === "AUTO_EDITABLE") { if (!typed) inp.value = s.next_preview; hint.textContent = "Suggested. Key your own number if you need to."; }
+        else if (s.mode === "AUTO_EDITABLE") { if (!typed) inp.value = s.next_preview; hint.textContent = "Next number shown — or type your own."; }
         else { if (!typed) inp.value = ""; inp.placeholder = "Key in the number"; hint.textContent = "This series is numbered by hand."; }
       };
       sel.addEventListener("change", () => { chosen = true; typed = false; apply(); });
@@ -115,7 +118,7 @@
     const isNew = !row;
     const accounts = (await ZL.accounts()).filter(isMoney);
     const P = ZL.isPersonal();
-    const r = row || { kind: kindForNew || "PAYMENT", code: "", name: "", title: "", format: "", reset: "YEARLY", mode: "AUTO",
+    const r = row || { kind: kindForNew || "PAYMENT", code: "", name: "", title: "", format: "", reset: "YEARLY", mode: "AUTO_EDITABLE",
       money_account_id: null, is_default: false, is_active: true, next_number: 1, used: 0 };
     const kindSel = (k) => `<option value="${k}"${r.kind === k ? " selected" : ""}>${E(KIND_LABEL()[k])}</option>`;
     const radio = (m, desc) => `<label class="zl-check"><input type="radio" name="mode" value="${m}"${r.mode === m ? " checked" : ""}>
@@ -133,8 +136,8 @@
           ${!isNew && r.used ? "<small>Fixed once the series is in use.</small>" : ""}</label>
         <label class="zl-field half"><span>Next number</span><input class="zl-input num" type="number" name="next" min="1" max="99999999" step="1" value="${E(r.next_number || 1)}"></label>
         <div class="zl-field"><span>Numbering</span>
-          ${radio("AUTO", "Zycount gives every number, in order, with no gaps. Recommended.")}
-          ${radio("AUTO_EDITABLE", "Zycount suggests the next number; you can key a different one.")}
+          ${radio("AUTO_EDITABLE", "Zycount fills in the next number; anyone can type their own instead. Recommended.")}
+          ${radio("AUTO", "Zycount gives every number, in order — nobody can type one.")}
           ${radio("MANUAL", "You key every number, e.g. from a printed voucher book. Zycount checks it isn't used twice.")}</div>
         <label class="zl-field" data-money-only><span>Use automatically for</span><select class="zl-input" name="money">
           <option value="">Any bank or cash account</option>${accounts.map((a) => `<option value="${a.id}"${a.id === r.money_account_id ? " selected" : ""}>${E(a.name)} · ${E(a.code)}</option>`).join("")}</select>
@@ -152,7 +155,7 @@
     let m;
     const val = (n) => { const el = m.root.querySelector(`[name="${n}"]`); return el ? el.value.trim() : ""; };
     const kindNow = () => (isNew ? val("kind") : r.kind);
-    const modeNow = () => (m.root.querySelector('[name="mode"]:checked') || {}).value || "AUTO";
+    const modeNow = () => (m.root.querySelector('[name="mode"]:checked') || {}).value || "AUTO_EDITABLE";
     actions.push({ label: isNew ? "Add series" : "Save", primary: true, onClick: async ({ close }) => {
       const next = Number(val("next"));
       if (!Number.isInteger(next) || next < 1) throw new ZL.ZLError("VALIDATION", "The next number is a whole number from 1.");
