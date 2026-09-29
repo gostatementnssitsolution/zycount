@@ -204,7 +204,7 @@
   /** The chart of accounts, cached per company until invalidated. */
   ZL.accounts = async (force = false) => {
     if (!ZL._accounts || force) {
-      ZL._accounts = await ZL.select("accounts", "id,code,name,type,sub_type,parent_id,is_postable,is_active,is_system,is_cash,description",
+      ZL._accounts = await ZL.select("accounts", "id,code,name,type,sub_type,parent_id,is_postable,is_active,is_system,is_cash,is_control,description",
         (q) => q.eq("company_id", ZL.company.company_id).order("code"));
     }
     return ZL._accounts;
@@ -246,6 +246,7 @@
     INTERNAL: "Something went wrong", NETWORK: "No connection", AUTH_REQUIRED: "Signed out", PERMISSION_DENIED: "Not allowed",
     PERIOD_CLOSED: "Period closed", PERIOD_NOT_FOUND: "No period", JOURNAL_UNBALANCED: "Not balanced", CONFLICT: "Changed by someone else",
     IMMUTABLE: "Can't be changed", DUPLICATE: "Already exists", LAST_ADMIN: "Needs an administrator",
+    CONTROL_ACCOUNT: "Control account", CREDIT_LIMIT: "Over the credit limit", LINKED_DOCUMENT: "Posted by a document", IN_USE: "In use",
   };
   /** Error box for inside forms and dialogs. Plain validation messages need no title. */
   ZL.errorBox = (e) => {
@@ -539,14 +540,16 @@
     const P = ZL.isPersonal();
     const groups = [
       { label: "", items: [["dashboard", "Dashboard", "dash"], ["transactions", P ? "Money in & out" : "Transactions", "swap"]] },
+      { label: "Sales", items: [["sales", "Sales documents", "invoice"], ["customers", "Customers", "users"], ["araging", "Receivables aging", "clock"], ["items", "Items & services", "box"]] },
+      { label: "Purchases", items: [["purchases", "Purchase documents", "truck"], ["suppliers", "Suppliers", "building"], ["apaging", "Payables aging", "clock"]] },
       { label: "Reports", items: [["pl", P ? "Income & spending" : "Profit & loss", "chart"], ["bs", P ? "Net worth" : "Balance sheet", "sheet"], ["tb", "Trial balance", "scale"]] },
-      { label: "Accounting", items: [["coa", P ? "Accounts & categories" : "Chart of accounts", "book"], ["journals", "Journals", "list"], ["gl", "General ledger", "ledger"], ["bankrec", P ? "Match bank statement" : "Bank reconciliation", "bank"], ["periods", "Fiscal periods", "calendar"]] },
-      { label: P ? "Settings" : "Company", items: [["users", P ? "Sharing" : "Users & roles", "users"], ["audit", "Audit trail", "shield"], ["templates", P ? "Receipt template" : "Voucher template", "doc"], ["numbering", "Numbering", "hash"], ["settings", "Settings", "gear"]] },
+      { label: "Accounting", items: [["coa", P ? "Accounts & categories" : "Chart of accounts", "book"], ["journals", "Journals", "list"], ["gl", "General ledger", "ledger"], ["cashbook", "Cash book", "wallet"], ["bankrec", P ? "Match bank statement" : "Bank reconciliation", "bank"], ["periods", "Fiscal periods", "calendar"]] },
+      { label: P ? "Settings" : "Company", items: [["users", P ? "Sharing" : "Users & roles", "users"], ["audit", "Audit trail", "shield"], ["templates", P ? "Receipt template" : "Voucher template", "doc"], ["numbering", "Numbering", "hash"], ["taxcodes", "Tax codes (SST)", "scale"], ["settings", "Settings", "gear"]] },
       { label: "Zycount", items: [["admin", "Admin console", "key"]] },
     ];
     NAV.length = 0;
     groups.forEach((g) => {
-      const items = g.items.filter(([id]) => { const m = ZL.modules[id]; return m && (m.platform ? ZL.platformAdmin : !m.perm || ZL.can(m.perm)); });
+      const items = g.items.filter(([id]) => { const m = ZL.modules[id]; return m && !(m.business && P) && (m.platform ? ZL.platformAdmin : !m.perm || ZL.can(m.perm)); });
       if (items.length) NAV.push({ label: g.label, items });
     });
   };

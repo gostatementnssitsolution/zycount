@@ -59,7 +59,7 @@
 
   /** Accounts money moves through: cash and bank, plus (personal) cards and pay-later. */
   const isMoney = (a) => a.is_cash || (ZL.isPersonal() && a.type === "LIABILITY" && a.sub_type === "CURRENT_LIABILITY");
-  const usable = (a) => a.is_postable && a.is_active;
+  const usable = (a) => a.is_postable && a.is_active && !a.is_control;
   const label = (a) => `${a.name} · ${a.code}`;
   const TYPE_GROUP = () => ({
     ASSET: ZL.T("Assets", "What I own"), LIABILITY: ZL.T("Liabilities", "What I owe"), EQUITY: ZL.T("Equity", "Net worth"),
@@ -225,6 +225,7 @@
     const plugCode = P ? "3100" : "3200";
     const plug = accounts.find((a) => a.code === plugCode);
     const list = accounts.filter((a) => usable(a) && ["ASSET", "LIABILITY", "EQUITY"].includes(a.type) && a.code !== plugCode);
+    const controls = accounts.filter((a) => a.is_control && a.is_active);
     // Contra accounts sit on the other side from their group: accumulated depreciation, allowances, drawings.
     const contra = (a) => (a.type === "ASSET" && /^(accumulated|allowance)/i.test(a.name)) || (a.type === "EQUITY" && (a.code === "3300" || /drawing/i.test(a.name)));
     const groups = [
@@ -236,6 +237,7 @@
     const body = `
       <p class="zl-p" style="margin-bottom:14px">Enter what each account held when you start using Zycount. Leave the rest blank.
         The difference goes to <b>${E(plug ? plug.name : "equity")}</b> automatically, so the journal always balances.</p>
+      ${controls.length ? `<p class="hint" style="margin:-6px 0 14px">${controls.map((a) => E(a.name)).join(" and ")} aren't listed: enter what each customer owes you and what you owe each supplier as an opening balance on that customer or supplier, so every amount can be knocked off later.</p>` : ""}
       <label class="zl-field" style="max-width:220px;margin-bottom:16px"><span>Balances as at</span><input class="zl-input" type="date" id="zl-ob-date" value="${E(date)}"></label>
       <div class="zl-ob">${groups.map(([t, title]) => `<div><h4>${title}</h4>${list.filter((a) => a.type === t).map((a) => `
         <label class="zl-ob-row"><span>${E(a.name)} <span class="code">${E(a.code)}</span>${contra(a) ? `<small>Enter as a positive number — it reduces ${a.type === "ASSET" ? "the asset" : "equity"}.</small>` : ""}</span>

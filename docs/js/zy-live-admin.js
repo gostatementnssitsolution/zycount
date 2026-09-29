@@ -41,8 +41,11 @@
     "user.invite": "Invite created", "user.invite_cancel": "Invite cancelled", "user.join": "Joined by invite",
     "admin.join": "Zycount admin joined", "admin.open": "Zycount admin opened", "bank.import": "Statement uploaded", "bank.delete": "Statement deleted", "bank.record": "Statement recorded",
     "numbering.create": "Numbering added", "numbering.edit": "Numbering changed", "numbering.delete": "Numbering removed",
+    "trade.save": "Document drafted", "trade.post": "Document posted", "trade.void": "Document voided", "trade.delete": "Draft deleted",
+    "trade.allocate": "Knocked off", "trade.unallocate": "Knock-off removed", "contact.save": "Contact saved", "contact.delete": "Contact removed",
+    "item.save": "Item saved", "item.delete": "Item removed", "tax.save": "Tax code saved",
   };
-  const tone = (a) => (/reverse|delete|reopen|archive/.test(a) ? "warn" : /post|close/.test(a) ? "ok" : "");
+  const tone = (a) => (/reverse|delete|reopen|archive|void|unallocate/.test(a) ? "warn" : /post|close/.test(a) ? "ok" : "");
 
   /** Makes a one-time invite link for a set of books and shows it ready to share. */
   ZL.invite = async (companyId, companyName, role) => {
