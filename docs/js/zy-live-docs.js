@@ -130,7 +130,7 @@
     const items = lines.filter((l) => l !== moneyLine && ZL.cents(isOR ? l.credit : l.debit) > 0);
     const total = ZL.cents(entry.total_debit) / 100;
     const accName = (l) => { const a = l && acc.get(l.account_id); return a ? `${a.name} · ${a.code}` : ""; };
-    const title = isOR ? ds.or_title : ds.pv_title;
+    const title = entry.series_title || (isOR ? ds.or_title : ds.pv_title);
     const labels = (ds.sign_labels || []).filter(Boolean).slice(0, 4);
     const addr = [info.address].filter(Boolean).map(E).join("");
     const contact = [info.phone, info.email].filter(Boolean).map(E).join(" · ");
@@ -166,7 +166,7 @@
     </div>`;
   };
 
-  const ENTRY_COLS = "id,reference,date,description,memo,status,doc_type,doc_no,party,pay_method,total_debit,reversal_of_id,journal_lines(account_id,description,debit,credit,line_no)";
+  const ENTRY_COLS = "id,reference,date,description,memo,status,doc_type,doc_no,doc_series_id,party,pay_method,total_debit,reversal_of_id,journal_lines(account_id,description,debit,credit,line_no)";
 
   async function loadVoucher(id) {
     const [rows, accounts, info, ds] = await Promise.all([
@@ -175,6 +175,10 @@
     ]);
     if (!rows[0]) throw new ZL.ZLError("NOT_FOUND", "That transaction isn't in these books.");
     if (!rows[0].doc_no) throw new ZL.ZLError("VALIDATION", "Only money in and money out have a voucher or receipt.");
+    if (rows[0].doc_series_id) {
+      const [ser] = await ZL.select("document_series", "title", (q) => q.eq("id", rows[0].doc_series_id));
+      if (ser && ser.title) rows[0].series_title = ser.title;
+    }
     return { entry: rows[0], accounts, info, ds };
   }
 
@@ -218,7 +222,7 @@
     const e = data.entry;
     const name = `${e.doc_no}.pdf`;
     ZL.modal({
-      title: `${e.doc_type === "OR" ? data.ds.or_title : data.ds.pv_title} ${e.doc_no}`, wide: true,
+      title: `${e.series_title || (e.doc_type === "OR" ? data.ds.or_title : data.ds.pv_title)} ${e.doc_no}`, wide: true,
       body: `<div class="zl-vwrap">${html}</div>`,
       actions: [
         ...(ZL.can("company.edit") ? [{ label: "Edit template", onClick: ({ close }) => { close(); ZL.open("templates", {}); } }] : []),

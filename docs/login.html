@@ -509,6 +509,17 @@ h1{font-size:26px;margin:0 0 6px;font-weight:600;letter-spacing:-.015em}
     busy(btn, false, "Send reset link");
   });
 
+  // A reset link that failed (expired, already used) comes back with the reason in the address.
+  var linkError = new URLSearchParams(location.hash.replace(/^#/, "")).get("error_code") || params.get("error_code");
+  if (linkError && !recovering) {
+    $("auth").hidden = true; $("forgot").hidden = false;
+    $("forgot-msg").className = "alert err show";
+    $("forgot-msg").textContent = linkError === "otp_expired"
+      ? "That reset link has expired or was already used. Enter your email to get a new one."
+      : "That reset link didn't work. Enter your email to get a new one.";
+    history.replaceState(null, "", location.pathname);
+  }
+
   // ── new password from the reset link ─────────
   if (recovering) {
     $("auth").hidden = true; $("recover").hidden = false;

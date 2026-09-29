@@ -60,7 +60,8 @@
   .zl-kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:1px;background:var(--line-2)}
   .zl-kv>div{background:var(--card);padding:10px 14px;font-size:12px;color:var(--ink-3)}
   .zl-kv b{display:block;color:var(--ink);font-weight:500;font-size:13px;margin-top:2px}
-  @media (max-width:900px){.zl-je-head{grid-template-columns:minmax(0,1fr)}}
+  .zl-je-num{display:grid;grid-template-columns:repeat(2,minmax(0,260px));gap:14px;padding:12px 20px;border-bottom:1px solid var(--line-2)}
+  @media (max-width:900px){.zl-je-head,.zl-je-num{grid-template-columns:minmax(0,1fr)}}
   `;
   const style = document.createElement("style");
   style.textContent = CSS;
@@ -409,15 +410,20 @@
 
   async function editAccount(a) {
     if (!a) return;
+    const locked = ["2150", "3300", ZL.isPersonal() ? "3100" : "3200"].includes(a.code);
     const done = await ZL.form({
       title: `Edit ${a.code}`,
-      intro: "The code and type are fixed once an account exists, so history always reads the same.",
+      intro: "The type is fixed once an account exists. A new code keeps all history — entries point at the account, not the code.",
       fields: [
+        ...(locked ? [] : [{ name: "code", label: "Code", required: true, value: a.code, hint: "Letters, digits, dots or dashes; up to 20." }]),
         { name: "name", label: "Name", required: true, value: a.name },
         { name: "description", label: "Description", type: "textarea", value: a.description || "" },
         ...(a.is_system ? [] : [{ name: "active", label: "Active — can receive postings", type: "checkbox", value: a.is_active }]),
       ],
-      submit: (v) => ZL.rpc("update_account", { p_id: a.id, p_name: v.name, p_description: v.description || null, p_is_active: a.is_system ? true : !!v.active }),
+      submit: async (v) => {
+        if (!locked && v.code !== a.code) await ZL.rpc("change_account_code", { p_id: a.id, p_code: v.code });
+        return ZL.rpc("update_account", { p_id: a.id, p_name: v.name, p_description: v.description || null, p_is_active: a.is_system ? true : !!v.active });
+      },
     });
     if (done) { ZL.toast("Account updated."); ZL.invalidate(); ZL.refresh(); }
   }
@@ -544,7 +550,8 @@
           if (src) { description = src.description || ""; memo = src.memo || ""; }
         }
         if (p.preset === "opening") description = "Opening balances";
-        return editorHtml({ date: ctx.today, description, memo, lines, isNew: true }, accounts);
+        const numbering = ZL.can("journal.post") ? await ZL.numbering.load(ctx.today).catch(() => []) : [];
+        return editorHtml({ date: ctx.today, description, memo, lines, isNew: true, numbering }, accounts);
       }
       const [entry] = await ZL.select("journal_entries", "*", (q) => q.eq("id", p.id).eq("company_id", cid()));
       if (!entry) {
@@ -552,7 +559,10 @@
           "It may have been a draft that was deleted, or it belongs to another company.", `<p style="margin-top:12px">${btn("zl-back", "Back to journals")}</p>`);
       }
       const lines = await ZL.select("journal_lines", "account_id,line_no,description,debit,credit", (q) => q.eq("journal_entry_id", entry.id).order("line_no"));
-      if (entry.status === "DRAFT" && ZL.can("journal.edit")) return editorHtml(Object.assign({}, entry, { lines }), accounts);
+      if (entry.status === "DRAFT" && ZL.can("journal.edit")) {
+        const numbering = ZL.can("journal.post") ? await ZL.numbering.load(entry.date).catch(() => []) : [];
+        return editorHtml(Object.assign({}, entry, { lines, numbering }), accounts);
+      }
       return detailHtml(entry, lines, accounts);
     },
     after(root, ctx) {
@@ -591,6 +601,8 @@
     const title = j.isNew ? "New journal" : "Draft journal";
     const canPost = ZL.can("journal.post");
     editorHtml.accounts = accounts;
+    editorHtml.numbering = j.numbering || [];
+    const numFields = ZL.numbering.fields(editorHtml.numbering, "JOURNAL");
     return ZL.header(title, j.isNew ? "Debits must equal credits before it can post. The JV number is given on posting." : `Draft · last saved ${ZL.dateTime(j.updated_at)}`,
         btn("zl-jback", "← Journals", "ghost")) + `
       <section class="card" id="zl-je" data-id="${j.id || ""}" data-version="${j.version || ""}">
@@ -599,6 +611,7 @@
           <label class="zl-field"><span>Description</span><input class="zl-input" id="zl-jdesc" value="${E(j.description || "")}" placeholder="What this entry records" maxlength="500"></label>
           <label class="zl-field"><span>Memo</span><input class="zl-input" id="zl-jmemo" value="${E(j.memo || "")}" placeholder="Internal note (optional)" maxlength="2000"></label>
         </div>
+        ${numFields.length ? `<div class="zl-je-num">${numFields.map((f) => ZL.fieldHtml(f)).join("")}</div>` : ""}
         <div class="tablewrap"><table class="zl-lines">
           <thead><tr><th style="width:36px">#</th><th>Account</th><th>Narrative</th><th class="r">Debit</th><th class="r">Credit</th><th></th></tr></thead>
           <tbody id="zl-lines">${lines.map((l, i) => lineRow(accounts, l, i + 1)).join("")}</tbody>
@@ -619,6 +632,8 @@
 
   function wireEditor(root, ctx) {
     const accounts = editorHtml.accounts;
+    const numCtl = ZL.numbering.wire(root, editorHtml.numbering, "JOURNAL",
+      { dateInput: root.querySelector("#zl-jdate"), autoHint: "Given when you post." });
     const body = root.querySelector("#zl-lines");
     const card = root.querySelector("#zl-je");
     let id = card.dataset.id || null;
@@ -735,8 +750,8 @@
 
     const save = async (post) => {
       errBox.innerHTML = "";
-      let data;
-      try { data = collect(post); } catch (e) { errBox.innerHTML = ZL.errorBox(e); return; }
+      let data, num = {};
+      try { data = collect(post); if (post) num = numCtl.read(); } catch (e) { errBox.innerHTML = ZL.errorBox(e); return; }
       busy(true);
       try {
         const saved = await ZL.rpc("save_journal", {
@@ -756,7 +771,7 @@
           return;
         }
         try {
-          const r = await ZL.rpc("post_journal", { p_id: id });
+          const r = await ZL.rpc("post_journal", { p_id: id, p_series: num.p_series || null, p_reference: num.p_doc_no || null });
           ZL.toast(`Posted ${r.reference} · ${M(r.total, { symbol: true })}`);
           window.removeEventListener("beforeunload", onUnload);
           ZL.open("journal", { id });

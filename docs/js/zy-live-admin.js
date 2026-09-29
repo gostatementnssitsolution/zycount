@@ -40,6 +40,7 @@
     "user.create": "Member added", "user.edit": "Role changed", "user.delete": "Member removed",
     "user.invite": "Invite created", "user.invite_cancel": "Invite cancelled", "user.join": "Joined by invite",
     "admin.join": "Zycount admin joined", "bank.import": "Statement uploaded", "bank.delete": "Statement deleted",
+    "numbering.create": "Numbering added", "numbering.edit": "Numbering changed", "numbering.delete": "Numbering removed",
   };
   const tone = (a) => (/reverse|delete|reopen|archive/.test(a) ? "warn" : /post|close/.test(a) ? "ok" : "");
 

@@ -101,7 +101,8 @@
     try { last = localStorage.getItem(prefKey); } catch (_) { /* ignore */ }
     const preferred = (money.find((a) => a.id === last) || money.find((a) => a.code === (P ? "1120" : "1131")) || money[0]).id;
     const others = accounts.filter((a) => !money.includes(a));
-    let fields, title, confirm;
+    const numRows = kind === "TRANSFER" ? [] : await ZL.numbering.load(ZL.today()).catch(() => []);
+    let fields, title, confirm, numCtl = null;
     if (kind === "OUT") {
       title = P ? "Money out" : "Record a payment";
       confirm = "Record payment";
@@ -146,6 +147,10 @@
         { name: "reference", label: "Reference no.", placeholder: "Optional" },
       ];
     }
+    if (kind !== "TRANSFER") {
+      const at = fields.findIndex((f) => f.name === "other") + 1;
+      fields.splice(at, 0, ...ZL.numbering.fields(numRows, ZL.numbering.KIND_OF[kind], preset.money || preferred));
+    }
     fields.push({ name: "_preview", label: "", type: "hidden" });
 
     const linesFor = (v) => {
@@ -172,15 +177,22 @@
         root.addEventListener("input", draw);
         root.addEventListener("change", draw);
         draw();
+        if (kind !== "TRANSFER") {
+          const moneyInput = root.querySelector('[name="money"]');
+          numCtl = ZL.numbering.wire(root, numRows, ZL.numbering.KIND_OF[kind],
+            { money: () => moneyInput.value, moneyInput, dateInput: root.querySelector('[name="date"]') });
+        }
       },
       submit: async (v) => {
         if (!v.amount || v.amount <= 0) throw new ZL.ZLError("VALIDATION", "Enter an amount greater than zero.");
         if (!v.other) throw new ZL.ZLError("VALIDATION", `Choose ${kind === "TRANSFER" ? "where the money goes" : "a category"}.`);
         if (v.other === v.money) throw new ZL.ZLError("VALIDATION", "Choose two different accounts.");
+        const num = numCtl ? numCtl.read() : {};
         const r = await ZL.rpc("record_transaction", {
           p_company: cid(), p_kind: kind, p_date: v.date, p_amount: v.amount, p_money_account: v.money,
           p_other_account: v.other, p_description: v.description || null, p_reference: v.reference || null,
           p_tax_rate: kind === "IN" ? Number(v.tax || 0) : 0, p_party: v.party || null, p_method: v.method || null,
+          p_series: num.p_series || null, p_doc_no: num.p_doc_no || null,
         });
         try { if (money.some((a) => a.id === v.money)) localStorage.setItem(prefKey, v.money); } catch (_) { /* ignore */ }
         ZL.toast(r.doc_no ? `Recorded as ${r.doc_no} and posted (${r.reference}).` : `Recorded and posted as ${r.reference}.`);
