@@ -1,0 +1,637 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Zycount — Double-entry accounting for Malaysian businesses</title>
+<meta name="description" content="Zycount is double-entry accounting software for Malaysian SMEs: invoices, bills, bank, payroll and SST post to a balanced ledger, locked by period and traceable to the source document.">
+<meta property="og:title" content="Zycount — Double-entry accounting for Malaysian businesses">
+<meta property="og:description" content="Every ringgit traced from invoice to balance sheet. SST, EPF, SOCSO, EIS and PCB built in.">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Serif:wght@500;600&display=swap">
+<style>
+:root{
+  color-scheme:light;
+  --paper:#F6F7F4; --card:#FFFFFF; --sunk:#EEF0EA; --rule:#DFE3DA; --rule-2:#E9ECE5;
+  --ink:#141A24; --ink-2:#465163; --ink-3:#768196;
+  --brand:#3A3FD0; --brand-2:#2F33B0; --brand-soft:#ECEDFB;
+  --good:#1E7A54; --good-soft:#E3F2EA; --warn:#9A5B06; --warn-soft:#FBF0E1; --bad:#B3213C;
+  --rail:#111621; --rail-2:#19202E; --rail-line:#28313F;
+  --r:12px; --wrap:1160px;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    color-scheme:dark;
+    --paper:#0B0F16; --card:#121925; --sunk:#171F2D; --rule:#232C3B; --rule-2:#1B2330;
+    --ink:#E8EDF5; --ink-2:#AAB5C7; --ink-3:#7D899E;
+    --brand:#7B80EE; --brand-2:#9A9EF3; --brand-soft:#1B1F3D;
+    --good:#49BC86; --good-soft:#10281E; --warn:#D79A3F; --warn-soft:#2A2012; --bad:#EB6A83;
+  }
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.6 "IBM Plex Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+a{color:inherit}
+img,svg{max-width:100%}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.serif{font-family:"IBM Plex Serif",Georgia,serif}
+.wrap{max-width:var(--wrap);margin:0 auto;padding:0 24px}
+.eyebrow{font:500 12px/1 "IBM Plex Mono",monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+h1,h2,h3{margin:0;letter-spacing:-.015em}
+h2{font-size:clamp(26px,3.4vw,38px);line-height:1.15;font-weight:600}
+.lede{color:var(--ink-2);font-size:17px;max-width:620px}
+.btn{display:inline-flex;align-items:center;gap:8px;border-radius:9px;padding:11px 18px;font-weight:600;font-size:14.5px;text-decoration:none;border:1px solid transparent;transition:background .15s,border-color .15s}
+.btn-primary{background:var(--brand);color:#fff}
+.btn-primary:hover{background:var(--brand-2)}
+.btn-ghost{border-color:var(--rule);background:var(--card);color:var(--ink)}
+.btn-ghost:hover{border-color:var(--ink-3)}
+.tag{display:inline-flex;align-items:center;gap:6px;font:500 11.5px/1 "IBM Plex Mono",monospace;padding:5px 8px;border-radius:999px;white-space:nowrap}
+.tag.live{background:var(--good-soft);color:var(--good)}
+.tag.preview{background:var(--warn-soft);color:var(--warn)}
+.tag.live::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+section{padding:88px 0}
+.sec-head{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:40px;align-items:end;margin-bottom:40px}
+.sec-head p{margin:0;color:var(--ink-2)}
+
+/* ── header ───────────────────────────────── */
+header.site{position:sticky;top:0;z-index:40;background:color-mix(in srgb,var(--paper) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--rule)}
+header.site .wrap{display:flex;align-items:center;gap:28px;height:64px}
+.logo{display:inline-flex;align-items:center;gap:10px;font-weight:600;font-size:17px;text-decoration:none}
+.logo .mark{width:28px;height:28px;border-radius:7px;background:var(--brand);color:#fff;display:grid;place-items:center;font-weight:700;font-size:15px}
+nav.links{display:flex;gap:22px;font-size:14px;color:var(--ink-2)}
+nav.links a{text-decoration:none}
+nav.links a:hover{color:var(--ink)}
+.head-cta{margin-left:auto;display:flex;gap:10px;align-items:center}
+.head-cta .login{font-size:14px;font-weight:500;text-decoration:none;padding:8px 10px}
+.head-cta .btn{padding:8px 14px;font-size:14px}
+
+/* ── hero ─────────────────────────────────── */
+.hero{padding:72px 0 64px;position:relative;overflow:hidden;border-bottom:1px solid var(--rule)}
+.hero::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent 0 35px,var(--rule-2) 35px 36px);
+  mask-image:linear-gradient(180deg,rgba(0,0,0,.9),transparent 85%)}
+.hero .wrap{position:relative;display:grid;grid-template-columns:minmax(0,1.02fr) minmax(0,1fr);gap:56px;align-items:center}
+.hero h1{font-size:clamp(36px,5vw,58px);line-height:1.04;font-weight:600;margin:18px 0 20px}
+.hero h1 em{font-style:normal;color:var(--brand)}
+.hero .ctas{display:flex;gap:12px;flex-wrap:wrap;margin:28px 0 22px}
+.hero .fine{display:flex;gap:18px;flex-wrap:wrap;color:var(--ink-3);font-size:13px}
+.hero .fine span::before{content:"✓ ";color:var(--good);font-weight:700}
+
+.ledger{background:var(--card);border:1px solid var(--rule);border-radius:14px;box-shadow:0 1px 0 var(--rule),0 24px 48px -24px rgba(20,26,36,.25);overflow:hidden}
+.ledger-h{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--rule)}
+.ledger-h .doc{display:flex;flex-direction:column}
+.ledger-h .doc b{font-weight:600}
+.ledger-h .doc span{font-size:12.5px;color:var(--ink-3)}
+.src-chip{font:500 11.5px/1 "IBM Plex Mono",monospace;background:var(--brand-soft);color:var(--brand);padding:6px 9px;border-radius:6px}
+table.jv{width:100%;border-collapse:collapse;font-size:13.5px}
+table.jv th{text-align:left;font:500 11px/1 "IBM Plex Mono",monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);padding:10px 18px;border-bottom:1px solid var(--rule);background:var(--sunk)}
+table.jv td{padding:10px 18px;border-bottom:1px solid var(--rule-2)}
+table.jv .n{text-align:right;width:120px}
+table.jv .code{color:var(--ink-3);margin-right:10px}
+table.jv tr.tot td{border-bottom:0;font-weight:600;background:var(--sunk)}
+.bal{display:inline-flex;align-items:center;gap:7px;color:var(--good);font-weight:600}
+.bal i{width:8px;height:8px;border-radius:50%;background:currentColor;box-shadow:0 0 0 3px var(--good-soft)}
+.hero-side{display:flex;flex-direction:column;gap:14px}
+.mini-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.mini{background:var(--card);border:1px solid var(--rule);border-radius:12px;padding:14px 16px}
+.mini .k{font-size:12px;color:var(--ink-3)}
+.mini .v{font-size:19px;font-weight:600;margin-top:2px}
+.mini .s{font-size:12px;color:var(--ink-2);margin-top:2px;display:flex;align-items:center;gap:6px}
+.lock{color:var(--warn)}
+
+/* ── compliance strip ─────────────────────── */
+.strip{padding:22px 0;border-bottom:1px solid var(--rule);background:var(--card)}
+.strip .wrap{display:flex;align-items:center;gap:26px;flex-wrap:wrap}
+.strip .lbl{color:var(--ink-3);font-size:13px}
+.strip ul{display:flex;gap:10px;flex-wrap:wrap;list-style:none;margin:0;padding:0}
+.strip li{font:500 12.5px/1 "IBM Plex Mono",monospace;border:1px solid var(--rule);border-radius:7px;padding:8px 10px;color:var(--ink-2)}
+
+/* ── the trail ────────────────────────────── */
+.trail{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:0;border:1px solid var(--rule);border-radius:var(--r);background:var(--card);overflow:hidden}
+.trail button{all:unset;box-sizing:border-box;cursor:pointer;padding:18px 16px;border-right:1px solid var(--rule);position:relative;min-height:128px;display:flex;flex-direction:column;gap:8px}
+.trail button:last-child{border-right:0}
+.trail button:hover{background:var(--sunk)}
+.trail button[aria-selected="true"]{background:var(--brand-soft)}
+.trail button[aria-selected="true"] .step{color:var(--brand)}
+.trail .step{font:500 11px/1 "IBM Plex Mono",monospace;color:var(--ink-3);letter-spacing:.06em}
+.trail b{font-weight:600;font-size:14.5px}
+.trail span.ref{font:12px "IBM Plex Mono",monospace;color:var(--ink-2)}
+.trail button:not(:last-child)::after{content:"→";position:absolute;right:-9px;top:50%;transform:translateY(-50%);z-index:2;width:18px;height:18px;border-radius:50%;background:var(--paper);border:1px solid var(--rule);display:grid;place-items:center;font-size:11px;color:var(--ink-3)}
+.trail-detail{margin-top:16px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:24px;background:var(--card);border:1px solid var(--rule);border-radius:var(--r);padding:24px}
+.trail-detail h3{font-size:19px;font-weight:600;margin-bottom:8px}
+.trail-detail p{margin:0;color:var(--ink-2)}
+.trail-detail .pane{background:var(--sunk);border-radius:10px;padding:14px 16px;font-size:13px}
+.pane table{width:100%;border-collapse:collapse}
+.pane td{padding:5px 0;border-bottom:1px dashed var(--rule)}
+.pane tr:last-child td{border-bottom:0}
+.pane .n{text-align:right}
+
+/* ── modules as a chart of accounts ───────── */
+.coa{background:var(--card);border:1px solid var(--rule);border-radius:var(--r);overflow:hidden}
+.coa-row{display:grid;grid-template-columns:90px minmax(0,230px) minmax(0,1fr) 110px;gap:20px;align-items:center;padding:16px 22px;border-bottom:1px solid var(--rule-2)}
+.coa-row:last-child{border-bottom:0}
+.coa-row.head{background:var(--sunk);padding-top:10px;padding-bottom:10px;font:500 11px/1 "IBM Plex Mono",monospace;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
+.coa-row .code{font:600 14px "IBM Plex Mono",monospace;color:var(--brand)}
+.coa-row b{font-weight:600}
+.coa-row .d{color:var(--ink-2);font-size:14px}
+.coa-row .st{justify-self:end}
+.coa-note{margin-top:14px;font-size:13px;color:var(--ink-3)}
+
+/* ── reports ──────────────────────────────── */
+.reports{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:22px;align-items:start}
+.rep{background:var(--card);border:1px solid var(--rule);border-radius:var(--r);overflow:hidden}
+.rep-tabs{display:flex;border-bottom:1px solid var(--rule);background:var(--sunk)}
+.rep-tabs button{all:unset;cursor:pointer;padding:12px 18px;font-size:14px;font-weight:500;color:var(--ink-2);border-bottom:2px solid transparent}
+.rep-tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--brand);background:var(--card)}
+.rep-body{padding:6px 20px 18px}
+.rep-meta{display:flex;justify-content:space-between;padding:12px 0;color:var(--ink-3);font-size:12.5px;border-bottom:1px solid var(--rule)}
+table.st{width:100%;border-collapse:collapse;font-size:14px}
+table.st td{padding:8px 0;border-bottom:1px solid var(--rule-2)}
+table.st td.n{text-align:right;font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
+table.st tr.sub td{font-weight:600;border-bottom:1px solid var(--rule)}
+table.st tr.grand td{font-weight:700;border-top:2px solid var(--ink);border-bottom:3px double var(--ink);padding-top:10px}
+table.st tr.grp td{padding-top:16px;font:500 11px/1 "IBM Plex Mono",monospace;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);border-bottom:0}
+table.st td.ind{padding-left:14px}
+.proof{margin-top:14px;display:flex;justify-content:space-between;align-items:center;background:var(--good-soft);color:var(--good);border-radius:8px;padding:10px 14px;font-size:13px;font-weight:500}
+.chart-card{background:var(--card);border:1px solid var(--rule);border-radius:var(--r);padding:18px 20px}
+.chart-card h3{font-size:15px;font-weight:600}
+.chart-card .sub{color:var(--ink-3);font-size:12.5px;margin-bottom:10px}
+.legend{display:flex;gap:16px;font-size:12.5px;color:var(--ink-2);margin-top:8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+.kpis div{background:var(--sunk);border-radius:9px;padding:10px 12px}
+.kpis .k{font-size:12px;color:var(--ink-3)}
+.kpis .v{font-weight:600;font-size:16px}
+
+/* ── Malaysia ─────────────────────────────── */
+.my{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.my article{background:var(--card);border:1px solid var(--rule);border-radius:var(--r);padding:22px}
+.my .ico{font:600 13px "IBM Plex Mono",monospace;color:var(--brand);background:var(--brand-soft);border-radius:8px;display:inline-block;padding:6px 9px;margin-bottom:14px}
+.my h3{font-size:17px;font-weight:600;margin-bottom:6px}
+.my p{margin:0;color:var(--ink-2);font-size:14px}
+.my ul{margin:12px 0 0;padding:0;list-style:none;font-size:13px;color:var(--ink-2)}
+.my li{padding:5px 0;border-top:1px dashed var(--rule);display:flex;justify-content:space-between;gap:10px}
+.my li span:last-child{font-family:"IBM Plex Mono",monospace;color:var(--ink)}
+
+/* ── controls (audit checklist) ───────────── */
+.controls{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:28px;align-items:start}
+.checklist{background:var(--card);border:1px solid var(--rule);border-radius:var(--r);overflow:hidden}
+.checklist .ch{display:grid;grid-template-columns:28px minmax(0,1fr);gap:12px;padding:16px 20px;border-bottom:1px solid var(--rule-2)}
+.checklist .ch:last-child{border-bottom:0}
+.checklist .tick{width:22px;height:22px;border-radius:6px;background:var(--good-soft);color:var(--good);display:grid;place-items:center;font-weight:700;font-size:13px;margin-top:2px}
+.checklist b{font-weight:600;display:block}
+.checklist span{color:var(--ink-2);font-size:14px}
+.close-card{background:var(--rail);color:#DDE3EE;border-radius:var(--r);padding:22px;border:1px solid var(--rail-line)}
+.close-card .hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.close-card .hd b{color:#fff;font-size:16px;font-weight:600}
+.bar{height:8px;background:var(--rail-2);border-radius:999px;overflow:hidden;margin-bottom:16px}
+.bar i{display:block;height:100%;width:100%;background:#49BC86;border-radius:999px}
+.close-card ul{list-style:none;margin:0;padding:0;font-size:13.5px}
+.close-card li{display:flex;justify-content:space-between;padding:8px 0;border-top:1px solid var(--rail-line)}
+.close-card li span:last-child{color:#49BC86;font-family:"IBM Plex Mono",monospace;font-size:12.5px}
+.close-card .locked{margin-top:14px;display:flex;align-items:center;gap:10px;background:var(--rail-2);border-radius:9px;padding:12px 14px;font-size:13px;color:#AFBACB}
+.close-card .locked b{color:#fff}
+
+/* ── faq ──────────────────────────────────── */
+.faq{max-width:820px}
+.faq details{border-bottom:1px solid var(--rule);padding:18px 0}
+.faq summary{cursor:pointer;font-weight:600;font-size:16px;list-style:none;display:flex;justify-content:space-between;gap:20px}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:"+";font-family:"IBM Plex Mono",monospace;color:var(--ink-3);font-size:18px;line-height:1}
+.faq details[open] summary::after{content:"−"}
+.faq p{margin:10px 0 0;color:var(--ink-2)}
+
+/* ── cta & footer ─────────────────────────── */
+.final{background:var(--rail);color:#fff;border-radius:18px;padding:56px;display:grid;grid-template-columns:minmax(0,1.3fr) auto;gap:32px;align-items:center;position:relative;overflow:hidden}
+.final::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent 0 35px,rgba(255,255,255,.035) 35px 36px);pointer-events:none}
+.final>*{position:relative}
+.final h2{color:#fff}
+.final p{color:#AFBACB;margin:10px 0 0;max-width:560px}
+.final .ctas{display:flex;gap:12px;flex-wrap:wrap}
+.final .btn-ghost{background:transparent;color:#fff;border-color:#3A4557}
+footer.site{padding:48px 0 40px;border-top:1px solid var(--rule);margin-top:88px;color:var(--ink-3);font-size:13.5px}
+footer.site .wrap{display:grid;grid-template-columns:minmax(0,1.4fr) repeat(3,minmax(0,1fr));gap:32px}
+footer.site h4{margin:0 0 10px;font:500 11.5px/1 "IBM Plex Mono",monospace;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-2)}
+footer.site a{display:block;text-decoration:none;padding:3px 0}
+footer.site a:hover{color:var(--ink)}
+footer.site .legal{grid-column:1/-1;border-top:1px solid var(--rule);padding-top:20px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
+
+/* ── responsive ───────────────────────────── */
+@media (max-width:980px){
+  nav.links{display:none}
+  .hero .wrap,.sec-head,.reports,.controls,.trail-detail{grid-template-columns:1fr}
+  .trail{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .trail button:nth-child(3){border-right:0}
+  .trail button:nth-child(-n+3){border-bottom:1px solid var(--rule)}
+  .trail button::after{display:none}
+  .my{grid-template-columns:1fr}
+  .coa-row{grid-template-columns:70px minmax(0,1fr) auto}
+  .coa-row .d{grid-column:2/-1;grid-row:2}
+  .coa-row.head .d{display:none}
+  .final{grid-template-columns:1fr;padding:36px 28px}
+  footer.site .wrap{grid-template-columns:1fr 1fr}
+}
+@media (max-width:560px){
+  .wrap{padding:0 16px}
+  section{padding:64px 0}
+  .head-cta .login{display:none}
+  .trail{grid-template-columns:1fr 1fr}
+  .trail button{min-height:110px}
+  .trail button:nth-child(odd){border-right:1px solid var(--rule)}
+  .trail button:nth-child(even){border-right:0}
+  .trail button:nth-child(-n+4){border-bottom:1px solid var(--rule)}
+  .mini-row,.kpis{grid-template-columns:1fr 1fr}
+  table.jv th,table.jv td{padding-left:12px;padding-right:12px}
+  table.jv .n{width:auto}
+  .coa-row{padding:14px 16px;gap:10px 14px}
+}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap">
+    <a class="logo" href="#top"><span class="mark">Z</span>Zycount</a>
+    <nav class="links" aria-label="Sections">
+      <a href="#trail">How it posts</a>
+      <a href="#modules">Modules</a>
+      <a href="#reports">Reports</a>
+      <a href="#malaysia">Malaysia</a>
+      <a href="#controls">Controls</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <div class="head-cta">
+      <a class="login" href="login.html">Log in</a>
+      <a class="btn btn-primary" href="login.html#register">Start free</a>
+    </div>
+  </div>
+</header>
+
+<main id="top">
+
+<!-- ═════════ HERO ═════════ -->
+<section class="hero">
+  <div class="wrap">
+    <div>
+      <span class="eyebrow">Double-entry accounting · Made for Malaysia</span>
+      <h1>Every ringgit, traced from <em>invoice</em> to balance sheet.</h1>
+      <p class="lede">Zycount is accounting software for Malaysian SMEs. Invoices, bills, bank lines and payroll post themselves to the ledger — balanced to the sen, locked by period, and one click away from the document that created them.</p>
+      <div class="ctas">
+        <a class="btn btn-primary" href="login.html#register">Start free →</a>
+        <a class="btn btn-ghost" href="login.html">Log in to the demo</a>
+      </div>
+      <div class="fine"><span>No credit card</span><span>MYR, SST &amp; EPF built in</span><span>Export your data any time</span></div>
+    </div>
+
+    <div class="hero-side">
+      <div class="ledger" aria-label="Example journal entry">
+        <div class="ledger-h">
+          <div class="doc"><b>INV-2026-000206 → JV-2026-000206</b><span>Sales invoice · customer A · 27 Aug 2026</span></div>
+          <span class="src-chip">AUTO-POSTED</span>
+        </div>
+        <table class="jv">
+          <thead><tr><th>Account</th><th class="n">Debit</th><th class="n">Credit</th></tr></thead>
+          <tbody>
+            <tr><td><span class="code mono">1150</span>Accounts Receivable</td><td class="n mono">26,435.60</td><td class="n mono"></td></tr>
+            <tr><td><span class="code mono">4110</span>Sales — Goods</td><td class="n mono"></td><td class="n mono">22,096.62</td></tr>
+            <tr><td><span class="code mono">4120</span>Sales — Services</td><td class="n mono"></td><td class="n mono">3,013.18</td></tr>
+            <tr><td><span class="code mono">2150</span>SST Output Tax</td><td class="n mono"></td><td class="n mono">1,325.80</td></tr>
+            <tr class="tot"><td><span class="bal"><i></i>Balanced</span></td><td class="n mono">26,435.60</td><td class="n mono">26,435.60</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="mini-row">
+        <div class="mini"><div class="k">Trial balance · 31 Aug 2026</div><div class="v mono">1,945,237.53</div><div class="s"><span class="bal"><i></i>Dr = Cr</span></div></div>
+        <div class="mini"><div class="k">January 2026</div><div class="v">Closed</div><div class="s lock">🔒 Locked — reopening is audited</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ COMPLIANCE STRIP ═════════ -->
+<div class="strip">
+  <div class="wrap">
+    <span class="lbl">Speaks Malaysian bookkeeping:</span>
+    <ul>
+      <li>MYR base currency</li><li>SST — sales &amp; service tax</li><li>EPF · SOCSO · EIS</li><li>PCB / MTD</li><li>Malaysian chart of accounts</li><li>MFRS-style statements</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ═════════ THE TRAIL ═════════ -->
+<section id="trail">
+  <div class="wrap">
+    <div class="sec-head">
+      <div><span class="eyebrow">How a transaction posts</span><h2 style="margin-top:12px">One invoice. Six places it shows up. All of them agree.</h2></div>
+      <p>Traditional software records a sale and hopes the reports catch up. Zycount runs every document through an accounting engine, so each figure in a statement walks back to the invoice that made it. Click a step.</p>
+    </div>
+
+    <div class="trail" role="tablist" id="trail-tabs"></div>
+    <div class="trail-detail" id="trail-detail" role="tabpanel" aria-live="polite"></div>
+  </div>
+</section>
+
+<!-- ═════════ MODULES ═════════ -->
+<section id="modules" style="background:var(--card);border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)">
+  <div class="wrap">
+    <div class="sec-head">
+      <div><span class="eyebrow">What's in the books</span><h2 style="margin-top:12px">The whole business, filed like a chart of accounts.</h2></div>
+      <p>Each module posts through the same engine and lands in the same ledger — no exports between systems, no reconciling your own software against itself.</p>
+    </div>
+
+    <div class="coa" role="table" aria-label="Zycount modules">
+      <div class="coa-row head" role="row"><span>Code</span><span>Module</span><span class="d">What it does</span><span class="st">Status</span></div>
+      <div id="coa-rows"></div>
+    </div>
+    <p class="coa-note"><b>Live</b> modules run on real posted data in the workspace. <b>Preview</b> modules are designed and clickable on sample data, and go live phase by phase.</p>
+  </div>
+</section>
+
+<!-- ═════════ REPORTS ═════════ -->
+<section id="reports">
+  <div class="wrap">
+    <div class="sec-head">
+      <div><span class="eyebrow">Financial statements</span><h2 style="margin-top:12px">Statements that prove themselves.</h2></div>
+      <p>The figures below are the demo company's actual books for January–August 2026, straight from the workspace. Assets equal liabilities plus equity. Debits equal credits. Every time.</p>
+    </div>
+
+    <div class="reports">
+      <div class="rep">
+        <div class="rep-tabs" role="tablist" id="rep-tabs">
+          <button role="tab" aria-selected="true" data-rep="pl">Profit &amp; loss</button>
+          <button role="tab" aria-selected="false" data-rep="bs">Balance sheet</button>
+          <button role="tab" aria-selected="false" data-rep="tb">Trial balance</button>
+        </div>
+        <div class="rep-body" id="rep-body" role="tabpanel"></div>
+      </div>
+
+      <div>
+        <div class="chart-card">
+          <h3>Revenue vs expenses</h3>
+          <div class="sub">Zycount Demo Trading Sdn Bhd · RM, monthly 2026</div>
+          <svg id="chart" viewBox="0 0 440 220" role="img" aria-label="Monthly revenue and expenses, January to August 2026"></svg>
+          <div class="legend"><span><i style="background:var(--brand)"></i>Revenue</span><span><i style="background:var(--ink-3)"></i>Expenses</span><span><i style="background:var(--good)"></i>Profit</span></div>
+        </div>
+        <div class="kpis">
+          <div><div class="k">Revenue YTD</div><div class="v mono">RM 1.36m</div></div>
+          <div><div class="k">Gross margin</div><div class="v mono">41.9%</div></div>
+          <div><div class="k">Net profit YTD</div><div class="v mono">RM 149,029</div></div>
+          <div><div class="k">Cash &amp; bank</div><div class="v mono">RM 266,641</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ MALAYSIA ═════════ -->
+<section id="malaysia" style="padding-top:24px">
+  <div class="wrap">
+    <div class="sec-head">
+      <div><span class="eyebrow">Built for Malaysian businesses</span><h2 style="margin-top:12px">Tax and statutory rules as settings, not spreadsheets.</h2></div>
+      <p>Rates live in versioned configuration with an effective date, so a budget change is an update — not a rewrite. Always confirm current rates with LHDN, KWSP, PERKESO and RMCD before you file.</p>
+    </div>
+    <div class="my">
+      <article>
+        <span class="ico">SST</span>
+        <h3>Sales &amp; Service Tax</h3>
+        <p>Tax codes on every invoice and bill line; output and input tax post to their own accounts, and the tax report ties to the ledger.</p>
+        <ul><li><span>Sales tax</span><span>5% / 10%</span></li><li><span>Service tax</span><span>6% / 8%</span></li><li><span>Zero-rated · exempt</span><span>0%</span></li></ul>
+      </article>
+      <article>
+        <span class="ico">PAYROLL</span>
+        <h3>EPF, SOCSO, EIS &amp; PCB</h3>
+        <p>A pay run calculates employee and employer contributions, withholds PCB, and posts one balanced payroll journal.</p>
+        <ul><li><span>Salaries &amp; wages</span><span>Dr 6110</span></li><li><span>EPF / SOCSO / EIS payable</span><span>Cr 2160–2170</span></li><li><span>PCB payable</span><span>Cr 2175</span></li></ul>
+      </article>
+      <article>
+        <span class="ico">MYR</span>
+        <h3>Ringgit first, foreign-currency ready</h3>
+        <p>MYR as the base currency, with foreign-currency invoices, exchange rates and period-end revaluation of realised and unrealised FX.</p>
+        <ul><li><span>Base currency</span><span>MYR</span></li><li><span>Also</span><span>USD SGD EUR GBP JPY</span></li><li><span>FX gain / loss</span><span>Auto-posted</span></li></ul>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ CONTROLS ═════════ -->
+<section id="controls" style="padding-top:24px">
+  <div class="wrap">
+    <div class="sec-head">
+      <div><span class="eyebrow">Controls</span><h2 style="margin-top:12px">The controls your auditor asks about — already switched on.</h2></div>
+      <p>Books you can trust are books that can't be quietly changed. These rules are enforced by the engine, not left to good habits.</p>
+    </div>
+    <div class="controls">
+      <div class="checklist">
+        <div class="ch"><span class="tick">✓</span><div><b>Balanced or blocked</b><span>A journal posts only when Σ debit = Σ credit, to the sen.</span></div></div>
+        <div class="ch"><span class="tick">✓</span><div><b>Reverse, never delete</b><span>Posted entries are immutable. Corrections are reversals that net to zero.</span></div></div>
+        <div class="ch"><span class="tick">✓</span><div><b>Period locking</b><span>Closed months can't be posted to; reopening needs authority and is logged.</span></div></div>
+        <div class="ch"><span class="tick">✓</span><div><b>Role-based access</b><span>Ten roles, from SuperAdmin to Auditor and Read-only, enforced on every action.</span></div></div>
+        <div class="ch"><span class="tick">✓</span><div><b>Audit trail</b><span>Who did what and when — on every post, reversal, close and sign-in.</span></div></div>
+        <div class="ch"><span class="tick">✓</span><div><b>Gap-free numbering</b><span>INV-2026-000001, JV-2026-000001 — per company, per year, no holes.</span></div></div>
+      </div>
+
+      <div class="close-card">
+        <div class="hd"><b>Month-end close · January 2026</b><span class="mono" style="color:#49BC86">100%</span></div>
+        <div class="bar"><i></i></div>
+        <ul>
+          <li><span>Bank reconciliation</span><span>✓ done</span></li>
+          <li><span>Receivables reconciled to AR</span><span>✓ done</span></li>
+          <li><span>Payables reconciled to AP</span><span>✓ done</span></li>
+          <li><span>Depreciation run</span><span>✓ posted</span></li>
+          <li><span>Accruals &amp; prepayments</span><span>✓ posted</span></li>
+          <li><span>SST reconciliation</span><span>✓ done</span></li>
+        </ul>
+        <div class="locked">🔒 <span><b>Period closed</b> by Nurul Hidayah, Finance Manager — further posting to January is blocked.</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ FAQ ═════════ -->
+<section id="faq" style="padding-top:24px">
+  <div class="wrap">
+    <span class="eyebrow">Questions</span>
+    <h2 style="margin:12px 0 20px">Asked by accountants, answered plainly.</h2>
+    <div class="faq">
+      <details open><summary>Is Zycount real double-entry accounting?</summary><p>Yes. Every transaction is a journal with at least two lines that must balance before it posts. Invoices, bills, receipts, payroll and depreciation all generate their journals automatically, and you can see each one before and after it posts.</p></details>
+      <details><summary>Can I fix a mistake in a posted entry?</summary><p>You reverse it. Zycount posts an equal-and-opposite entry linked to the original, then you post the correct one. The ledger keeps the full story, which is exactly what an auditor wants to see.</p></details>
+      <details><summary>How does it handle SST and payroll deductions?</summary><p>Tax codes carry the rate and post output and input tax to separate accounts. Payroll computes EPF, SOCSO, EIS and PCB from versioned rate tables. Both are configuration, so you can update rates when they change — and you should verify them against the authorities before filing.</p></details>
+      <details><summary>Can I move my existing books in?</summary><p>Yes. Import your chart of accounts, customers, suppliers, products and opening balances from Excel or CSV, with validation and a preview before anything is written.</p></details>
+      <details><summary>Can I try it right now?</summary><p>The demo workspace is open: sign in with <span class="mono">admin@zycount.test</span> and <span class="mono">Zycount!Demo2026</span>, or create your own account. Try the accountant and then the auditor login — what you can do changes with the role.</p></details>
+      <details><summary>Who owns the data?</summary><p>You do. Export any report or list to CSV or PDF at any time. Zycount is built on open-source components (PostgreSQL, Next.js, NestJS) and can be self-hosted.</p></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ FINAL CTA ═════════ -->
+<div class="wrap">
+  <div class="final">
+    <div>
+      <h2>Open the books.</h2>
+      <p>Set up your company with a Malaysian chart of accounts, SST codes and twelve fiscal periods ready to post — or look around the demo company first.</p>
+    </div>
+    <div class="ctas">
+      <a class="btn btn-primary" href="login.html#register">Start free</a>
+      <a class="btn btn-ghost" href="login.html">Log in</a>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <div>
+      <a class="logo" href="#top" style="color:var(--ink)"><span class="mark">Z</span>Zycount</a>
+      <p style="margin:12px 0 0;max-width:320px">Double-entry accounting for Malaysian businesses — every figure traceable to its source.</p>
+    </div>
+    <div><h4>Product</h4><a href="#trail">How it posts</a><a href="#modules">Modules</a><a href="#reports">Reports</a><a href="#controls">Controls</a></div>
+    <div><h4>Malaysia</h4><a href="#malaysia">SST</a><a href="#malaysia">Payroll statutory</a><a href="#malaysia">Multi-currency</a></div>
+    <div><h4>Access</h4><a href="login.html">Log in</a><a href="login.html#register">Create account</a><a href="spec/">Engineering spec</a></div>
+    <div class="legal"><span>© 2026 Zycount · Made in Malaysia</span><span>All figures shown are from a demo company.</span></div>
+  </div>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  var fmt = function (n) { return (n < 0 ? "(" : "") + Math.abs(n).toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + (n < 0 ? ")" : ""); };
+  var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); };
+
+  /* ── the trail ───────────────────────────── */
+  var TRAIL = [
+    { step: "01", title: "Source document", ref: "INV-2026-000206",
+      h: "It starts with a document you already make.",
+      p: "A sales invoice to customer A: goods RM 22,096.62, services RM 3,013.18, SST RM 1,325.80. Nothing is keyed into the ledger by hand.",
+      rows: [["Goods", "22,096.62"], ["Services", "3,013.18"], ["SST", "1,325.80"], ["Invoice total", "26,435.60"]] },
+    { step: "02", title: "Posting rule", ref: "Dr AR · Cr Sales · Cr SST",
+      h: "The engine decides the double entry.",
+      p: "Posting rules map each document type to accounts. You see the entry it will produce — account by account — before you confirm.",
+      rows: [["Dr 1150 Accounts Receivable", "26,435.60"], ["Cr 4110 Sales — Goods", "22,096.62"], ["Cr 4120 Sales — Services", "3,013.18"], ["Cr 2150 SST Output Tax", "1,325.80"]] },
+    { step: "03", title: "Journal", ref: "JV-2026-000206",
+      h: "A balanced journal, or nothing at all.",
+      p: "Debits and credits must match to the sen. Unbalanced entries are rejected with a clear reason — and the invoice is told it was not posted.",
+      rows: [["Total debit", "26,435.60"], ["Total credit", "26,435.60"], ["Difference", "0.00"], ["Status", "POSTED"]] },
+    { step: "04", title: "General ledger", ref: "1150 Accounts Receivable",
+      h: "It lands on every account it touched.",
+      p: "Each line updates its account's running balance and keeps a link to the journal and the invoice. Receivables now owe RM 148,700.41.",
+      rows: [["Opening", "…"], ["27 Aug · JV-2026-000206", "+26,435.60"], ["31 Aug · receipt", "−26,435.60"], ["Closing balance", "148,700.41"]] },
+    { step: "05", title: "Trial balance", ref: "31 Aug 2026 · balanced",
+      h: "The books still balance, overall.",
+      p: "The trial balance sums every account. If debits and credits ever disagreed, you'd know — but the engine never lets them.",
+      rows: [["Total debits", "1,945,237.53"], ["Total credits", "1,945,237.53"], ["Out of balance", "0.00"]] },
+    { step: "06", title: "Statements", ref: "P&L · Balance sheet",
+      h: "And it reads straight into the statements.",
+      p: "Revenue in the profit & loss, receivables in the balance sheet. Click the figure and walk all the way back to step 01.",
+      rows: [["Revenue YTD", "1,362,497.64"], ["Net profit YTD", "149,029.13"], ["Total assets", "717,369.02"], ["Liabilities + equity", "717,369.02"]] }
+  ];
+  var tabs = document.getElementById("trail-tabs");
+  var detail = document.getElementById("trail-detail");
+  function showTrail(i) {
+    Array.prototype.forEach.call(tabs.children, function (b, j) { b.setAttribute("aria-selected", String(i === j)); });
+    var t = TRAIL[i];
+    detail.innerHTML =
+      '<div><span class="eyebrow">Step ' + t.step + '</span><h3 style="margin-top:8px">' + esc(t.h) + '</h3><p>' + esc(t.p) + '</p></div>' +
+      '<div class="pane"><table>' + t.rows.map(function (r) {
+        return '<tr><td>' + esc(r[0]) + '</td><td class="n mono">' + esc(r[1]) + '</td></tr>';
+      }).join("") + '</table></div>';
+  }
+  TRAIL.forEach(function (t, i) {
+    var b = document.createElement("button");
+    b.setAttribute("role", "tab");
+    b.innerHTML = '<span class="step">' + t.step + '</span><b>' + esc(t.title) + '</b><span class="ref">' + esc(t.ref) + '</span>';
+    b.addEventListener("click", function () { showTrail(i); });
+    tabs.appendChild(b);
+  });
+  showTrail(0);
+
+  /* ── modules ─────────────────────────────── */
+  var MODULES = [
+    ["1000", "General ledger", "Chart of accounts, journals with draft → post → reverse, running balances, fiscal periods and year-end.", true],
+    ["1100", "Sales & receivables", "Quotations, invoices, credit notes, receipts with allocation, customer statements and AR aging.", false],
+    ["2100", "Purchases & payables", "Purchase orders, goods received, bills with three-way matching, supplier payments and AP aging.", false],
+    ["1130", "Banking", "Bank accounts on the ledger, statement import, matching rules and the reconciliation workbench.", false],
+    ["1170", "Inventory", "Items, warehouses, weighted-average and FIFO costing, stock movements and reorder planning.", false],
+    ["2160", "Payroll", "Employees, pay runs, EPF, SOCSO, EIS and PCB, payslips and the payroll journal.", false],
+    ["1500", "Fixed assets", "Asset register, monthly depreciation runs, transfers and disposals with gain or loss.", false],
+    ["2150", "Tax", "SST tax codes, output and input tax accounts, and a tax report that ties to the ledger.", false],
+    ["8000", "Reports", "Trial balance, profit & loss and balance sheet with period comparison and CSV export.", true],
+    ["9000", "Controls & audit", "Ten roles, per-action permissions, period locking and an append-only audit trail.", true],
+    ["9900", "Finance copilot", "Ask the ledger a question — every figure in the answer cites the transaction behind it.", false]
+  ];
+  document.getElementById("coa-rows").innerHTML = MODULES.map(function (m) {
+    return '<div class="coa-row" role="row"><span class="code">' + m[0] + '</span><b>' + esc(m[1]) + '</b><span class="d">' + esc(m[2]) +
+      '</span><span class="st"><span class="tag ' + (m[3] ? 'live">Live' : 'preview">Preview') + '</span></span></div>';
+  }).join("");
+
+  /* ── statements (demo books, Jan–Aug 2026) ── */
+  var REPORTS = {
+    pl: { meta: ["Profit & loss", "1 Jan – 31 Aug 2026 · RM"], rows: [
+      ["grp", "Revenue"], ["", "Sales — Goods", 1198997.96, 1], ["", "Sales — Services", 163499.68, 1], ["sub", "Total revenue", 1362497.64],
+      ["grp", "Cost of sales"], ["", "Cost of goods sold", -791338.63, 1], ["sub", "Gross profit", 571159.01],
+      ["grp", "Operating expenses"], ["", "Salaries and wages", -272000, 1], ["", "EPF, SOCSO & EIS — employer", -38352, 1],
+      ["", "Rental of premises", -68000, 1], ["", "Utilities", -23624.22, 1], ["", "Depreciation", -14400, 1], ["", "Bank charges", -793.66, 1],
+      ["sub", "Operating profit", 153989.13], ["", "Interest on term loans", -4960, 1],
+      ["grand", "Net profit", 149029.13]
+    ], proof: ["Ties to the ledger", "Revenue − expenses = 149,029.13"] },
+    bs: { meta: ["Balance sheet", "As at 31 Aug 2026 · RM"], rows: [
+      ["grp", "Assets"], ["", "Cash and bank", 266641.12, 1], ["", "Accounts receivable", 148700.41, 1], ["", "Inventory", 182516.21, 1],
+      ["", "SST input tax", 49911.28, 1], ["", "Equipment, net of depreciation", 69600, 1], ["sub", "Total assets", 717369.02],
+      ["grp", "Liabilities"], ["", "Accounts payable", 78300, 1], ["", "Accruals", 9200, 1], ["", "SST output tax", 71939.89, 1],
+      ["", "Term loans", 104000, 1], ["sub", "Total liabilities", 263439.89],
+      ["grp", "Equity"], ["", "Share capital", 250000, 1], ["", "Retained earnings", 54900, 1], ["", "Profit for the period", 149029.13, 1],
+      ["sub", "Total equity", 453929.13], ["grand", "Liabilities + equity", 717369.02]
+    ], proof: ["Assets = Liabilities + Equity", "717,369.02 = 717,369.02"] },
+    tb: { meta: ["Trial balance", "As at 31 Aug 2026 · RM"], cols: true, rows: [
+      ["", "Assets (cash, bank, AR, stock, SST, equipment)", [731769.02, 0], 1], ["", "Accumulated depreciation", [0, 14400], 1],
+      ["", "Liabilities (AP, accruals, SST, loans)", [0, 263439.89], 1], ["", "Share capital & retained earnings", [0, 304900], 1],
+      ["", "Revenue", [0, 1362497.64], 1], ["", "Cost of sales", [791338.63, 0], 1], ["", "Expenses", [422129.88, 0], 1],
+      ["grand", "Totals", [1945237.53, 1945237.53]]
+    ], proof: ["Debits = credits", "1,945,237.53 = 1,945,237.53"] }
+  };
+  function renderRep(key) {
+    var r = REPORTS[key];
+    var head = '<div class="rep-meta"><span><b style="color:var(--ink)">' + esc(r.meta[0]) + '</b> · Zycount Demo Trading Sdn Bhd</span><span>' + esc(r.meta[1]) + '</span></div>';
+    var body = '<table class="st">' + (r.cols ? '<tr class="grp"><td></td><td class="n">Debit</td><td class="n">Credit</td></tr>' : '') +
+      r.rows.map(function (row) {
+        var cls = row[0], label = row[1], val = row[2], ind = row[3];
+        if (cls === "grp") return '<tr class="grp"><td colspan="3">' + esc(label) + '</td></tr>';
+        var cells = r.cols
+          ? '<td class="n">' + (val[0] ? fmt(val[0]) : "") + '</td><td class="n">' + (val[1] ? fmt(val[1]) : "") + '</td>'
+          : '<td class="n">' + fmt(val) + '</td>';
+        return '<tr class="' + cls + '"><td class="' + (ind ? "ind" : "") + '">' + esc(label) + '</td>' + cells + '</tr>';
+      }).join("") + '</table>';
+    var proof = '<div class="proof"><span>✓ ' + esc(r.proof[0]) + '</span><span class="mono">' + esc(r.proof[1]) + '</span></div>';
+    document.getElementById("rep-body").innerHTML = head + body + proof;
+    document.querySelectorAll("#rep-tabs button").forEach(function (b) { b.setAttribute("aria-selected", String(b.dataset.rep === key)); });
+  }
+  document.querySelectorAll("#rep-tabs button").forEach(function (b) { b.addEventListener("click", function () { renderRep(b.dataset.rep); }); });
+  renderRep("pl");
+
+  /* ── chart ───────────────────────────────── */
+  var T = [["Jan",145402.15,136426.8],["Feb",139004.93,133574.32],["Mar",173282.53,153504.38],["Apr",151340.78,140482.28],
+           ["May",161439.4,146623.48],["Jun",210841.62,175518.5],["Jul",204295.12,171592.9],["Aug",176891.11,155745.85]];
+  var svg = document.getElementById("chart"), W = 440, H = 220, L = 38, B = 24, top = 10, max = 225000;
+  var y = function (v) { return top + (H - B - top) * (1 - v / max); };
+  var slot = (W - L - 6) / T.length, bw = 11, out = "";
+  [0, 75000, 150000, 225000].forEach(function (v) {
+    out += '<line x1="' + L + '" x2="' + W + '" y1="' + y(v) + '" y2="' + y(v) + '" stroke="var(--rule)" />' +
+      '<text x="' + (L - 6) + '" y="' + (y(v) + 4) + '" text-anchor="end" font-size="10" fill="var(--ink-3)" font-family="IBM Plex Mono">' + (v / 1000) + 'k</text>';
+  });
+  var pts = [];
+  T.forEach(function (m, i) {
+    var cx = L + slot * i + slot / 2;
+    out += '<rect x="' + (cx - bw - 1) + '" y="' + y(m[1]) + '" width="' + bw + '" height="' + (y(0) - y(m[1])) + '" rx="2" fill="var(--brand)"><title>' + m[0] + ' revenue RM ' + fmt(m[1]) + '</title></rect>';
+    out += '<rect x="' + (cx + 1) + '" y="' + y(m[2]) + '" width="' + bw + '" height="' + (y(0) - y(m[2])) + '" rx="2" fill="var(--ink-3)" opacity=".55"><title>' + m[0] + ' expenses RM ' + fmt(m[2]) + '</title></rect>';
+    out += '<text x="' + cx + '" y="' + (H - 7) + '" text-anchor="middle" font-size="10.5" fill="var(--ink-3)" font-family="IBM Plex Sans">' + m[0] + '</text>';
+    pts.push(cx + "," + y(m[1] - m[2]));
+  });
+  out += '<polyline points="' + pts.join(" ") + '" fill="none" stroke="var(--good)" stroke-width="2" />';
+  pts.forEach(function (p, i) { var xy = p.split(","); out += '<circle cx="' + xy[0] + '" cy="' + xy[1] + '" r="2.8" fill="var(--good)"><title>' + T[i][0] + ' profit RM ' + fmt(T[i][1] - T[i][2]) + '</title></circle>'; });
+  svg.innerHTML = out;
+})();
+</script>
+</body>
+</html>
